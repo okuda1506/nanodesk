@@ -33,7 +33,7 @@ The USDZ uses meters with +Y up and +Z toward the viewer. Its axis-aligned bound
 
 ## Japanese music screens and transport
 
-`MusicSession` owns navigation, list selection, errors and playback state. The views are メニュー, ミュージック, 曲 and 再生中. The original navy and cyan interface uses system text, solid blue selection, two-line song rows, and an artwork square above the track information and progress bar. Its layout and styling are distinct from Apple's firmware. The user-supplied source index identifies Apple user-guide images and photographed screens. Those references informed screen size and interaction scope and remain outside the repository.
+`MusicSession` owns navigation, list selection, errors and playback state. The views are メニュー, ミュージック, 曲 and 再生中. Browsing uses white backgrounds, dark system text and white text on a blue selection. Now Playing uses charcoal and light text with a pale blue progress bar. The user-guide images informed the palette, and the original layout uses two-line song rows and an artwork square above the track information. The reference files remain outside the repository.
 
 `MusicScreenRenderer` draws a 240 × 376 sRGB image into an explicitly opaque RGBA canvas. `DeviceScene` updates a reusable RealityKit texture as the primary color of an unlit material on `ScreenSurface` alone. This keeps the screen colors separate from scene lighting and tone mapping. The texture follows the existing UVs, rotates with the mesh and culls back faces. The bezel and other surfaces retain their imported materials. The rendering checks on Mac include vertical orientation, readability at an angle and no reverse-side display.
 
