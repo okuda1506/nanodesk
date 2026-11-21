@@ -48,6 +48,22 @@ protocol MusicService: Sendable {
 final class MusicSession {
     enum Page: Hashable { case home, music, songs, playing }
 
+    enum MenuItem: String {
+        case music = "ミュージック", videos = "ビデオ", photos = "写真", podcast = "Podcast"
+        case radio = "ラジオ", camera = "ビデオカメラ", extras = "エクストラ", settings = "設定"
+        case shuffle = "曲をシャッフル", playing = "再生中"
+        case coverFlow = "Cover Flow", geniusMix = "Genius Mix", playlists = "プレイリスト"
+        case artists = "アーティスト", albums = "アルバム", songs = "曲", genres = "ジャンル"
+        case composers = "作曲者", audiobooks = "オーディオブック", search = "検索"
+    }
+
+    private static let homeItems: [MenuItem] = [
+        .music, .videos, .photos, .podcast, .radio, .camera, .extras, .settings, .shuffle, .playing
+    ]
+    private static let musicItems: [MenuItem] = [
+        .coverFlow, .geniusMix, .playlists, .artists, .albums, .songs, .genres, .composers, .audiobooks, .search
+    ]
+
     private let service: any MusicService
     private(set) var page: Page = .home
     private(set) var tracks: [MusicTrack] = []
@@ -65,11 +81,23 @@ final class MusicSession {
 
     init(service: any MusicService) { self.service = service }
 
-    var selection: Int { selections[page, default: 0] }
+    var menuItems: [MenuItem] {
+        switch page {
+        case .home: Self.homeItems
+        case .music: playback == nil ? Self.musicItems : Self.musicItems + [.playing]
+        case .songs, .playing: []
+        }
+    }
+
+    var selection: Int {
+        let index = selections[page, default: 0]
+        // The music shortcut disappears when the current track ends.
+        return page == .music ? min(index, menuItems.count - 1) : index
+    }
 
     func scroll(steps: Int) {
         let count = switch page {
-        case .home, .music: 2
+        case .home, .music: menuItems.count
         case .songs: tracks.count
         case .playing: 0
         }
@@ -77,6 +105,7 @@ final class MusicSession {
         let next = max(0, min(count - 1, selection + steps))
         guard next != selection else { return }
         selections[page] = next
+        if page == .home || page == .music { notice = nil }
         changed?()
     }
 
@@ -96,12 +125,15 @@ final class MusicSession {
         switch button {
         case .select:
             switch page {
-            case .home:
-                if selection == 0 { transition(to: .music) }
-                else { await showPlaying() }
-            case .music:
-                if selection == 0 { await showSongs() }
-                else { await showPlaying() }
+            case .home, .music:
+                switch menuItems[selection] {
+                case .music: transition(to: .music)
+                case .songs: await showSongs()
+                case .playing: await showPlaying()
+                default:
+                    notice = "この項目は未対応です。"
+                    changed?()
+                }
             case .songs:
                 if tracks.indices.contains(selection) { await play(tracks[selection].id) }
                 else if notice != nil { await showSongs() }

@@ -33,7 +33,9 @@ The USDZ uses meters with +Y up and +Z toward the viewer. Its axis-aligned bound
 
 ## Japanese music screens and transport
 
-`MusicSession` owns navigation, list selection, errors and playback state. The views are メニュー, ミュージック, 曲 and 再生中. Browsing uses white backgrounds, dark system text and white text on a blue selection. Now Playing uses charcoal and light text with a pale blue progress bar. The user-guide images informed the palette, and the original layout uses two-line song rows and an artwork square above the track information. The reference files remain outside the repository.
+`MusicSession` supplies the Japanese menu items to both wheel input and drawing. On the 240 × 376 display, the home menu has a 20-pixel status bar, nine rows and three 80-pixel artwork tiles along the bottom. The music menu starts with Cover Flow and places 曲 sixth. Its list uses the full area below the status bar. The status bar shows a virtual battery icon. The selected row carries a blue gradient and a single white chevron. Selecting an unimplemented entry displays a Japanese notice on the same page.
+
+The home artwork strip uses three original illustrations bundled in `MenuSleeves.jpg`. Once playback supplies usable cover art, it replaces the left tile in memory. Opening a menu can draw the strip before Music authorization. The attached reference images are used for comparison only. Songs uses two-line rows, and Now Playing uses a charcoal background with artwork above the track information.
 
 `MusicScreenRenderer` draws a 240 × 376 sRGB image into an explicitly opaque RGBA canvas. `DeviceScene` updates a reusable RealityKit texture as the primary color of an unlit material on `ScreenSurface` alone. This keeps the screen colors separate from scene lighting and tone mapping. The texture follows the existing UVs, rotates with the mesh and culls back faces. The bezel and other surfaces retain their imported materials. The rendering checks on Mac include vertical orientation, readability at an angle and no reverse-side display.
 

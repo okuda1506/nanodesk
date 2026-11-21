@@ -7,6 +7,7 @@ private actor MockMusic: MusicService {
     var issue: MusicIssue?
     var current: MusicPlayback?
     var plays: [String] = []
+    private(set) var libraryRequests = 0
     var cover: Data?
     var deniedTrack: String?
 
@@ -18,6 +19,7 @@ private actor MockMusic: MusicService {
     }
 
     func tracks() async throws -> [MusicTrack] {
+        libraryRequests += 1
         if let issue { throw issue }
         return library
     }
@@ -58,6 +60,46 @@ private actor MockMusic: MusicService {
 struct MusicInteractionTests {
     private let first = MusicTrack(id: "A", title: "第一曲", artist: "演奏者")
     private let second = MusicTrack(id: "B", title: "第二曲", artist: "演奏者")
+
+    @Test func menuOrderMatchesTheWheelAndUnavailableItemsStayOnTheirPage() async {
+        let service = MockMusic([first])
+        let session = MusicSession(service: service)
+        #expect(session.menuItems == [
+            .music, .videos, .photos, .podcast, .radio, .camera, .extras, .settings, .shuffle, .playing
+        ])
+        session.scroll(steps: 1)
+        await session.press(.select)
+        #expect(session.page == .home && session.notice != nil)
+        session.scroll(steps: 100)
+        #expect(session.menuItems[session.selection] == .playing && session.notice == nil)
+        await session.press(.select)
+        #expect(session.page == .playing)
+        await session.press(.menu)
+        #expect(session.page == .home && session.selection == 9)
+        session.scroll(steps: -100)
+        await session.press(.select)
+        #expect(session.menuItems == [
+            .coverFlow, .geniusMix, .playlists, .artists, .albums, .songs, .genres, .composers, .audiobooks, .search
+        ])
+        await session.press(.select)
+        #expect(session.page == .music && session.selection == 0 && session.notice != nil)
+        #expect(await service.libraryRequests == 0)
+        session.scroll(steps: 5)
+        #expect(session.menuItems[session.selection] == .songs && session.notice == nil)
+        await session.press(.select)
+        #expect(session.page == .songs)
+        #expect(await service.libraryRequests == 1)
+        await session.press(.select)
+        await session.press(.menu)
+        await session.press(.menu)
+        #expect(session.page == .music && session.selection == 5)
+        session.scroll(steps: 100)
+        #expect(session.menuItems[session.selection] == .playing)
+        await session.press(.select)
+        #expect(session.page == .playing && session.playback?.track == first)
+        await session.press(.menu)
+        #expect(session.page == .music && session.menuItems[session.selection] == .playing)
+    }
 
     @Test func oneSongPlaysPausesAndHasNoNeighbors() async {
         let service = MockMusic([first], cover: Data([0, 1, 2]))
@@ -146,6 +188,7 @@ struct MusicInteractionTests {
     private func openSongs(in session: MusicSession) async {
         await session.press(.select)
         #expect(session.page == .music)
+        session.scroll(steps: 5)
         await session.press(.select)
         #expect(session.page == .songs)
     }

@@ -147,6 +147,17 @@
 			isa = PBXBuildFile;
 			fileRef = 000000000000000000000070 /* NanoModel.usdz */;
 		};
+		000000000000000000000073 /* MenuSleeves.jpg */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = image.jpeg;
+			name = "MenuSleeves.jpg";
+			path = "assets/runtime/MenuSleeves.jpg";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000D5 /* MenuSleeves.jpg in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000073 /* MenuSleeves.jpg */;
+		};
 		000000000000000000000071 /* Info.plist */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = text.plist.xml;
@@ -187,7 +198,7 @@
 		};
 		000000000000000000000005 /* Resources */ = {
 			isa = PBXGroup;
-			children = (000000000000000000000070 /* NanoModel.usdz */,);
+			children = (000000000000000000000070 /* NanoModel.usdz */, 000000000000000000000073 /* MenuSleeves.jpg */,);
 			name = Resources;
 			sourceTree = "<group>";
 		};
@@ -212,7 +223,7 @@
 		00000000000000000000000B /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (0000000000000000000000D4 /* NanoModel.usdz in Resources */,);
+			files = (0000000000000000000000D4 /* NanoModel.usdz in Resources */, 0000000000000000000000D5 /* MenuSleeves.jpg in Resources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		000000000000000000000008 /* NanoDesk */ = {

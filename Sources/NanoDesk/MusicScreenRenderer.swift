@@ -19,6 +19,8 @@ final class MusicScreenRenderer {
     private let height = 376
     private let selectionBlue = MusicScreenRenderer.rgb(51, 109, 200)
     private let selectionStripe = MusicScreenRenderer.rgb(73, 151, 212)
+    private let menuSleeves = Bundle.main.url(forResource: "MenuSleeves", withExtension: "jpg")
+        .flatMap { NSImage(contentsOf: $0) }
     private var artworkBytes: Data?
     private var artworkImage: NSImage?
 
@@ -37,26 +39,15 @@ final class MusicScreenRenderer {
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
         defer { NSGraphicsContext.current = previous }
 
-        fill(palette.accent, 0, 0, 240, 2)
-        text("NANODESK", at: CGRect(x: 15, y: 13, width: 110, height: 19), size: 12,
-             weight: .semibold, color: palette.accent)
-        let clock = Date.now.formatted(.dateTime.hour().minute())
-        text(clock, at: CGRect(x: 132, y: 13, width: 92, height: 19), size: 12,
-             color: palette.muted, align: .right)
-        fill(palette.muted.withAlphaComponent(0.27), 16, 37, 208, 1)
-
         switch session.page {
-        case .home:
-            heading("メニュー", color: palette.text)
-            menu(["ミュージック", "再生中"], selection: session.selection)
-        case .music:
-            heading("ミュージック", color: palette.text)
-            menu(["曲", "再生中"], selection: session.selection)
+        case .home, .music:
+            menu(session)
+            return context.makeImage()
         case .songs:
-            heading("曲", color: palette.text)
+            detailHeader("曲", palette: palette)
             songs(session)
         case .playing:
-            heading("再生中", color: palette.text)
+            detailHeader("再生中", palette: palette)
             if let playback = session.playback { nowPlaying(playback, artwork: session.artwork) }
             else if session.notice == nil { message("再生中の曲はありません。", color: palette.muted) }
         }
@@ -75,16 +66,89 @@ final class MusicScreenRenderer {
         return context.makeImage()
     }
 
-    private func menu(_ labels: [String], selection: Int) {
-        for (index, label) in labels.enumerated() {
-            let y = CGFloat(96 + index * 46)
-            let selected = index == selection
-            rowBackground(y: y, height: 43, selected: selected)
-            text(label, at: CGRect(x: 24, y: y + 10, width: 164, height: 25), size: 18, weight: .medium,
-                 color: selected ? .white : Self.browse.text)
-            text("›", at: CGRect(x: 198, y: y + 7, width: 19, height: 29), size: 21,
-                 color: selected ? .white : Self.browse.muted, align: .right)
+    private func menu(_ session: MusicSession) {
+        let isHome = session.page == .home
+        let screenWidth = CGFloat(width)
+        let statusHeight: CGFloat = 20
+        let sleeveSize = screenWidth / 3
+        let sleeveTop = CGFloat(height) - sleeveSize
+        let rowHeight = isHome ? (sleeveTop - statusHeight) / 9 : 29.3
+        let capacity = isHome ? 9 : Int((CGFloat(height) - statusHeight) / rowHeight)
+        let items = session.menuItems
+        let selection = session.selection
+        let first = max(0, selection - capacity + 1)
+
+        gradient(CGRect(x: 0, y: 0, width: screenWidth, height: statusHeight - 1),
+                 top: Self.rgb(251, 251, 251), bottom: Self.rgb(173, 173, 173))
+        fill(Self.rgb(121, 122, 122), 0, statusHeight - 1, screenWidth, 1)
+        let header = CGRect(x: 8, y: 0, width: 190, height: statusHeight - 1)
+        menuLabel(isHome ? "iPod" : "ミュージック", in: header,
+                  font: .boldSystemFont(ofSize: 13), color: .black)
+        if session.playback?.isPlaying == true {
+            menuLabel("▶", in: CGRect(x: 189, y: 0, width: 14, height: statusHeight - 1),
+                      font: .systemFont(ofSize: 10), color: Self.rgb(55, 78, 99))
         }
+        fill(Self.rgb(74, 77, 70), 210, 4, 20, 10)
+        fill(Self.rgb(108, 110, 105), 230, 7, 2, 4)
+        gradient(CGRect(x: 211, y: 5, width: 18, height: 8),
+                 top: Self.rgb(204, 239, 153), bottom: Self.rgb(94, 162, 43))
+
+        let font = NSFont(name: "HiraginoSans-W6", size: 17.5) ?? .boldSystemFont(ofSize: 17.5)
+        for index in first..<min(first + capacity, items.count) {
+            let top = statusHeight + (CGFloat(index - first) * rowHeight).rounded()
+            let bottom = statusHeight + (CGFloat(index - first + 1) * rowHeight).rounded()
+            let row = CGRect(x: 0, y: top, width: screenWidth, height: bottom - top)
+            let selected = index == selection
+            if selected {
+                gradient(row, top: Self.rgb(79, 161, 216), bottom: Self.rgb(47, 101, 196))
+                fill(Self.rgb(23, 88, 155), 0, row.maxY - 1, screenWidth, 1)
+                let arrow = NSBezierPath()
+                arrow.move(to: CGPoint(x: screenWidth - 13, y: row.midY - 5))
+                arrow.line(to: CGPoint(x: screenWidth - 8, y: row.midY))
+                arrow.line(to: CGPoint(x: screenWidth - 13, y: row.midY + 5))
+                arrow.lineWidth = 2.8
+                NSColor.white.setStroke()
+                arrow.stroke()
+            }
+            menuLabel(items[index].rawValue, in: row.insetBy(dx: 8, dy: 0),
+                      font: font, color: selected ? .white : .black)
+        }
+        if isHome {
+            let strip = CGRect(x: 0, y: sleeveTop, width: screenWidth, height: sleeveSize)
+            menuSleeves?.draw(in: strip, from: .zero, operation: .copy, fraction: 1,
+                              respectFlipped: true, hints: nil)
+            if let cover = decodedArtwork(session.artwork) {
+                let side = min(cover.size.width, cover.size.height)
+                let square = CGRect(x: (cover.size.width - side) / 2, y: (cover.size.height - side) / 2,
+                                    width: side, height: side)
+                cover.draw(in: CGRect(x: 0, y: sleeveTop, width: sleeveSize, height: sleeveSize),
+                           from: square, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+            }
+        }
+        if let notice = session.notice {
+            let footer = CGRect(x: 0, y: CGFloat(height) - 30, width: screenWidth, height: 30)
+            fill(.white, 0, footer.minY, screenWidth, footer.height)
+            menuLabel(notice, in: footer.insetBy(dx: 8, dy: 0),
+                      font: .systemFont(ofSize: 13), color: Self.browse.muted)
+        }
+    }
+
+    private func menuLabel(_ title: String, in rect: CGRect, font: NSFont, color: NSColor) {
+        let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
+        let label = title as NSString
+        let y = (rect.midY - label.size(withAttributes: attributes).height / 2).rounded()
+        label.draw(at: CGPoint(x: rect.minX, y: y), withAttributes: attributes)
+    }
+
+    private func gradient(_ rect: CGRect, top: NSColor, bottom: NSColor) {
+        guard let context = NSGraphicsContext.current?.cgContext,
+              let gradient = CGGradient(colorsSpace: CGColorSpace(name: CGColorSpace.sRGB),
+                                        colors: [top.cgColor, bottom.cgColor] as CFArray, locations: nil) else { return }
+        context.saveGState()
+        context.clip(to: rect)
+        context.drawLinearGradient(gradient, start: CGPoint(x: rect.minX, y: rect.minY),
+                                   end: CGPoint(x: rect.minX, y: rect.maxY), options: [])
+        context.restoreGState()
     }
 
     private func songs(_ session: MusicSession) {
@@ -113,10 +177,7 @@ final class MusicScreenRenderer {
         }
     }
 
-    private func nowPlaying(_ playback: MusicPlayback, artwork: Data?) {
-        let palette = Self.playback
-        let coverRect = CGRect(x: 47, y: 86, width: 146, height: 146)
-        fill(palette.muted.withAlphaComponent(0.13), coverRect.minX, coverRect.minY, coverRect.width, coverRect.height)
+    private func decodedArtwork(_ artwork: Data?) -> NSImage? {
         if artworkBytes != artwork {
             artworkBytes = artwork
             artworkImage = artwork.flatMap { data in
@@ -129,7 +190,14 @@ final class MusicScreenRenderer {
                 return NSImage(cgImage: image, size: CGSize(width: CGFloat(image.width), height: CGFloat(image.height)))
             }
         }
-        if let image = artworkImage {
+        return artworkImage
+    }
+
+    private func nowPlaying(_ playback: MusicPlayback, artwork: Data?) {
+        let palette = Self.playback
+        let coverRect = CGRect(x: 47, y: 86, width: 146, height: 146)
+        fill(palette.muted.withAlphaComponent(0.13), coverRect.minX, coverRect.minY, coverRect.width, coverRect.height)
+        if let image = decodedArtwork(artwork) {
             let scale = min(coverRect.width / image.size.width, coverRect.height / image.size.height)
             let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
             image.draw(in: CGRect(x: coverRect.midX - size.width / 2, y: coverRect.midY - size.height / 2,
@@ -153,8 +221,15 @@ final class MusicScreenRenderer {
              size: 15, color: palette.accent, align: .right)
     }
 
-    private func heading(_ title: String, color: NSColor) {
-        text(title, at: CGRect(x: 16, y: 47, width: 185, height: 31), size: 21, weight: .semibold, color: color)
+    private func detailHeader(_ title: String, palette: Palette) {
+        fill(palette.accent, 0, 0, 240, 2)
+        text("NANODESK", at: CGRect(x: 15, y: 13, width: 110, height: 19), size: 12,
+             weight: .semibold, color: palette.accent)
+        let clock = Date.now.formatted(.dateTime.hour().minute())
+        text(clock, at: CGRect(x: 132, y: 13, width: 92, height: 19), size: 12,
+             color: palette.muted, align: .right)
+        fill(palette.muted.withAlphaComponent(0.27), 16, 37, 208, 1)
+        text(title, at: CGRect(x: 16, y: 47, width: 185, height: 31), size: 21, weight: .semibold, color: palette.text)
     }
 
     private func rowBackground(y: CGFloat, height: CGFloat, selected: Bool) {
