@@ -44,6 +44,8 @@ private actor MockMusic: MusicService {
 
     func artwork(for id: String) async throws -> Data? { cover }
 
+    func restoreAccess() { issue = nil }
+
     func advance(to position: Double) {
         if let current {
             self.current = MusicPlayback(track: current.track, isPlaying: current.isPlaying,
@@ -115,6 +117,21 @@ struct MusicInteractionTests {
         #expect(denied.tracks.isEmpty && denied.notice == MusicIssue.denied.message)
         await denied.press(.menu)
         #expect(denied.notice == nil && denied.page == .music)
+    }
+
+    @Test func centerRetriesAfterAutomationAccessIsRestored() async {
+        let service = MockMusic([first], issue: .denied)
+        let session = MusicSession(service: service)
+        await openSongs(in: session)
+        #expect(session.tracks.isEmpty)
+        #expect(session.notice == MusicIssue.denied.message)
+
+        await service.restoreAccess()
+        await session.press(.select)
+        #expect(session.page == .songs)
+        #expect(session.tracks == [first])
+        #expect(session.notice == nil)
+        #expect(await service.plays.isEmpty)
     }
 
     @Test func failureStaysOnSongsAndDoesNotClaimPlayback() async {

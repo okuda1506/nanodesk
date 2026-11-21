@@ -1,48 +1,75 @@
-import Foundation
+import AppKit
+import OSAKit
 
 struct MusicAppBridge: MusicService {
+    private static let bundleID = "com.apple.Music"
     private let queue = DispatchQueue(label: "jp.nanodesk.music-automation", qos: .userInitiated)
 
     func tracks() async throws -> [MusicTrack] {
-        try await work {
-            let columns = try Self.execute("tracks")
-            guard columns.count == 3, let ids = columns[0] as? [String],
-                  let titles = columns[1] as? [Any], let artists = columns[2] as? [Any],
-                  titles.count == ids.count, artists.count == ids.count else { throw MusicIssue.failed }
-            return ids.indices.map { MusicTrack(id: ids[$0], title: titles[$0] as? String ?? "",
-                                               artist: artists[$0] as? String ?? "") }
+        try await Self.openMusicIfNeeded()
+        return try await work {
+            let columns = try Self.execute(.tracks)
+            guard columns.numberOfItems == 3, let ids = columns.atIndex(1),
+                  let names = columns.atIndex(2), let artists = columns.atIndex(3),
+                  names.numberOfItems == ids.numberOfItems, artists.numberOfItems == ids.numberOfItems else {
+                throw MusicIssue.invalidResponse
+            }
+            return (0..<ids.numberOfItems).compactMap { offset in
+                let index = offset + 1
+                guard let id = ids.atIndex(index)?.stringValue, !id.isEmpty else { return nil }
+                return MusicTrack(id: id, title: names.atIndex(index)?.stringValue ?? "",
+                                  artist: artists.atIndex(index)?.stringValue ?? "")
+            }
         }
     }
 
     func play(_ id: String) async throws -> MusicPlayback {
-        try await work {
-            let row = try Self.execute("play", id: id)
-            guard let result = try Self.playback(row), result.track.id == id, result.isPlaying else {
+        try await Self.openMusicIfNeeded()
+        return try await work {
+            let row = try Self.execute(.play, id: id)
+            guard let playback = try Self.playback(row), playback.track.id == id, playback.isPlaying else {
                 throw MusicIssue.cannotPlay
             }
-            return result
+            return playback
         }
     }
 
     func snapshot() async throws -> MusicPlayback? {
-        try await work { try Self.playback(Self.execute("snapshot")) }
+        guard await Self.isMusicRunning() else { return nil }
+        return try await work { try Self.playback(Self.execute(.snapshot)) }
     }
 
     func togglePlayback() async throws -> MusicPlayback? {
-        try await work { try Self.playback(Self.execute("toggle")) }
+        guard await Self.isMusicRunning() else { throw MusicIssue.unavailable }
+        return try await work { try Self.playback(Self.execute(.toggle)) }
     }
 
     func artwork(for id: String) async throws -> Data? {
-        try await work {
-            let directory = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
-            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: false)
-            defer { try? FileManager.default.removeItem(at: directory) }
-            let file = directory.appendingPathComponent("cover")
-            _ = try Self.execute("cover", id: id, artworkPath: file.path)
-            guard let info = try? file.resourceValues(forKeys: [.fileSizeKey]),
-                  let size = info.fileSize, size > 0, size <= 8 * 1024 * 1024 else { return nil }
-            return try Data(contentsOf: file)
+        guard await Self.isMusicRunning() else { return nil }
+        return try await work {
+            let reply = try Self.execute(.artwork, id: id)
+            guard reply.numberOfItems == 1, let bytes = reply.atIndex(1)?.data,
+                  !bytes.isEmpty, bytes.count <= 8 * 1024 * 1024 else { return nil }
+            return bytes
         }
+    }
+
+    @MainActor
+    private static func isMusicRunning() -> Bool {
+        NSRunningApplication.runningApplications(withBundleIdentifier: bundleID).contains { !$0.isTerminated }
+    }
+
+    @MainActor
+    private static func openMusicIfNeeded() async throws {
+        guard !isMusicRunning() else { return }
+        let workspace = NSWorkspace.shared
+        guard let url = workspace.urlForApplication(withBundleIdentifier: bundleID) else {
+            throw MusicIssue.unavailable
+        }
+        let configuration = NSWorkspace.OpenConfiguration()
+        configuration.activates = false
+        do { _ = try await workspace.openApplication(at: url, configuration: configuration) }
+        catch { throw MusicIssue.unavailable }
     }
 
     private func work<T: Sendable>(_ operation: @escaping @Sendable () throws -> T) async throws -> T {
@@ -51,127 +78,109 @@ struct MusicAppBridge: MusicService {
         }
     }
 
-    private static func playback(_ row: [Any]) throws -> MusicPlayback? {
-        guard !row.isEmpty else { return nil }
-        guard row.count == 6, let id = row[0] as? String, !id.isEmpty,
-              let playing = row[3] as? Bool, let elapsed = row[4] as? Double,
-              let length = row[5] as? Double, elapsed.isFinite, length.isFinite else {
-            throw MusicIssue.failed
+    private static func playback(_ row: NSAppleEventDescriptor) throws -> MusicPlayback? {
+        guard row.numberOfItems != 0 else { return nil }
+        guard row.numberOfItems == 6, let id = row.atIndex(1)?.stringValue, !id.isEmpty,
+              let playing = row.atIndex(4)?.int32Value,
+              let elapsed = row.atIndex(5)?.doubleValue, let length = row.atIndex(6)?.doubleValue,
+              elapsed.isFinite, length.isFinite else {
+            throw MusicIssue.invalidResponse
         }
-        return MusicPlayback(track: MusicTrack(id: id, title: row[1] as? String ?? "",
-                                               artist: row[2] as? String ?? ""),
-                             isPlaying: playing, elapsed: max(0, elapsed), duration: max(0, length))
+        return MusicPlayback(track: MusicTrack(id: id, title: row.atIndex(2)?.stringValue ?? "",
+                                               artist: row.atIndex(3)?.stringValue ?? ""),
+                             isPlaying: playing == 1, elapsed: max(0, elapsed), duration: max(0, length))
     }
 
-    private static func execute(_ operation: String, id: String = "", artworkPath: String = "") throws -> [Any] {
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/osascript")
-        process.arguments = ["-", operation, id, artworkPath]
-        let source = Pipe()
-        let response = Pipe()
-        process.standardInput = source
-        process.standardOutput = response
-        process.standardError = FileHandle.nullDevice
-        try process.run()
-        // Constant script, separate argv, no shell or string interpolation of library data.
-        do {
-            defer { try? source.fileHandleForWriting.close() }
-            try source.fileHandleForWriting.write(contentsOf: Data(script.utf8))
+    // Keep OSA objects on the worker. A private language instance keeps the
+    // execution independent of any shared scripting instance.
+    private static func execute(_ command: Command, id: String = "") throws -> NSAppleEventDescriptor {
+        guard let language = OSALanguage(forName: "AppleScript"), language.isThreadSafe else {
+            throw MusicIssue.scriptSetup(code: nil)
         }
-        let bytes = response.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-        guard process.terminationStatus == 0,
-              let envelope = try JSONSerialization.jsonObject(with: bytes) as? [Any],
-              envelope.count == 2, let code = envelope[0] as? Int else { throw MusicIssue.failed }
-        if code != 0 {
-            switch code {
-            case -1743, -1744, -10004, -128: throw MusicIssue.denied
-            case -600, -609, -10814: throw MusicIssue.unavailable
-            default: throw operation == "play" ? MusicIssue.cannotPlay : MusicIssue.failed
-            }
+        let script = OSAScript(source: command.source, language: language)
+        script.languageInstance = OSALanguageInstance(language: language)
+        var error: NSDictionary?
+        guard script.compileAndReturnError(&error) else {
+            throw issue(for: error, command: command, compiling: true)
         }
-        guard let result = envelope[1] as? [Any] else { throw MusicIssue.failed }
+        error = nil
+        // IDs are handler arguments and never form part of the script source.
+        guard let result = script.executeHandler(withName: "performrequest", arguments: [id], error: &error) else {
+            throw issue(for: error, command: command, compiling: false)
+        }
         return result
     }
 
-    private static let script = """
-    use framework "Foundation"
-    use scripting additions
+    private static func issue(for error: NSDictionary?, command: Command, compiling: Bool) -> MusicIssue {
+        let code = (error?[OSAScriptErrorNumber] as? NSNumber)?.intValue
+        switch code {
+        case -1743, -1744, -10004, -128: return .denied
+        case -600, -609, -10814: return .unavailable
+        case -1712: return .timedOut
+        default:
+            if compiling { return .scriptSetup(code: code) }
+            if command == .play, code == -2701 || code == -1728 { return .cannotPlay }
+            return .eventFailed(code: code)
+        }
+    }
 
-    on run argv
-        try
-            set operation to item 1 of argv
-            set targetID to item 2 of argv
-            set coverPath to item 3 of argv
-            with timeout of 12 seconds
-                set payload to my performOperation(operation, targetID, coverPath)
-            end timeout
-            return my encodeJSON({0, payload})
-        on error number code
-            return my encodeJSON({code, {}})
-        end try
-    end run
+    private enum Command {
+        case tracks, play, snapshot, toggle, artwork
 
-    on performOperation(operation, targetID, coverPath)
-        if operation is not "tracks" and operation is not "play" then
-            if application id "com.apple.Music" is not running then return {}
-        end if
-
-        tell application id "com.apple.Music"
-            if operation is "tracks" then
-                return {persistent ID, name, artist} of every track of library playlist 1
-            else if operation is "play" then
-                set matched to (first track of library playlist 1 whose persistent ID is targetID)
-                play matched
-                repeat 8 times
-                    set row to my currentPlayback()
-                    if (count row) > 3 then
-                        if item 1 of row is targetID and item 4 of row is true then return row
-                    end if
-                    delay 0.12
-                end repeat
-                error number -2701
-            else if operation is "toggle" then
-                playpause
-                return my currentPlayback()
-            else if operation is "cover" then
-                set playingTrack to current track
-                if persistent ID of playingTrack is targetID and (count artworks of playingTrack) > 0 then
-                    set coverData to raw data of artwork 1 of playingTrack
-                else
-                    return {}
-                end if
-            else
-                return my currentPlayback()
-            end if
-        end tell
-
-        -- Staging contains artwork only and is deleted by the caller.
-        set outputFile to open for access (POSIX file coverPath) with write permission
-        try
-            write coverData to outputFile
-            close access outputFile
-        on error number code
-            try
-                close access outputFile
-            end try
-            error number code
-        end try
-        return {}
-    end performOperation
-
-    on currentPlayback()
-        tell application id "com.apple.Music"
-            if player state is stopped then return {}
-            set itemTrack to current track
-            return {persistent ID of itemTrack, name of itemTrack, artist of itemTrack, ¬
-                (player state is playing), player position, duration of itemTrack}
-        end tell
-    end currentPlayback
-
-    on encodeJSON(value)
-        set jsonData to current application's NSJSONSerialization's dataWithJSONObject:value options:0 |error|:(missing value)
-        return (current application's NSString's alloc()'s initWithData:jsonData encoding:4) as text
-    end encodeJSON
-    """
+        var source: String {
+            let readPlayback = """
+                if player state is stopped then return {}
+                set itemTrack to current track
+                set playingFlag to 0
+                if player state is playing then set playingFlag to 1
+                return {persistent ID of itemTrack, name of itemTrack, artist of itemTrack, ¬
+                    playingFlag, player position, duration of itemTrack}
+                """
+            let code: String
+            switch self {
+            case .tracks:
+                code = """
+                    if (count tracks of library playlist 1) is 0 then return {{}, {}, {}}
+                    return {persistent ID, name, artist} of every track of library playlist 1
+                    """
+            case .play:
+                code = """
+                    set itemTrack to first track of library playlist 1 whose persistent ID is targetID
+                    play itemTrack
+                    repeat 8 times
+                        if player state is playing then
+                            set playingTrack to current track
+                            if persistent ID of playingTrack is targetID then
+                                return {persistent ID of playingTrack, name of playingTrack, artist of playingTrack, ¬
+                                    1, player position, duration of playingTrack}
+                            end if
+                        end if
+                        delay 0.12
+                    end repeat
+                    error "Music did not start the selected track" number -2701
+                    """
+            case .snapshot:
+                code = readPlayback
+            case .toggle:
+                code = "playpause\n" + readPlayback
+            case .artwork:
+                code = """
+                    if player state is stopped then return {}
+                    set playingTrack to current track
+                    if persistent ID of playingTrack is not targetID then return {}
+                    if (count of artworks of playingTrack) is 0 then return {}
+                    return {raw data of artwork 1 of playingTrack}
+                    """
+            }
+            return """
+                on performrequest(targetID)
+                    with timeout of 12 seconds
+                        tell application id "com.apple.Music"
+                            \(code)
+                        end tell
+                    end timeout
+                end performrequest
+                """
+        }
+    }
 }

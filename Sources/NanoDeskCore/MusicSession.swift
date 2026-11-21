@@ -15,6 +15,8 @@ struct MusicPlayback: Equatable, Sendable {
 
 enum MusicIssue: Error, Sendable {
     case denied, unavailable, cannotPlay, failed
+    case timedOut, invalidResponse
+    case scriptSetup(code: Int?), eventFailed(code: Int?)
 
     var message: String {
         switch self {
@@ -22,7 +24,15 @@ enum MusicIssue: Error, Sendable {
         case .unavailable: "Macで「ミュージック」を開いて、もう一度お試しください。"
         case .cannotPlay: "この曲を再生できません。ミュージックで再生できるか確認してください。"
         case .failed: "ミュージックに接続できませんでした。もう一度お試しください。"
+        case .timedOut: "ミュージックの応答がありません。開いてから再試行してください。"
+        case .invalidResponse: "ミュージックの曲情報を読み取れませんでした。"
+        case .scriptSetup(let code): "ミュージック操作の準備に失敗しました。" + codeSuffix(code)
+        case .eventFailed(let code): "ミュージックの操作に失敗しました。" + codeSuffix(code)
         }
+    }
+
+    private func codeSuffix(_ code: Int?) -> String {
+        code.map { "（コード \($0)）" } ?? ""
     }
 }
 

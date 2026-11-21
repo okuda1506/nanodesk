@@ -83,7 +83,7 @@ cd nanodesk
 
 With a playable track registered in **Music.app**, face the device front and turn off **Click Through**. Click the center button on **ミュージック**, then on **曲**. NanoDesk can open Music when you first browse. Allow **NanoDesk → Music** in the macOS Automation prompt, select the song with the wheel and click center. Music plays the audio and NanoDesk shows **再生中**. The list reads the Music library directly. A playlist and a subscription are unnecessary.
 
-If permission was denied, use System Settings → Privacy & Security → Automation → NanoDesk → Music, then reopen **曲**. If the item is not there, try opening **曲** again from the signed app. Try playing the track in Music itself if playback fails. See [Music QA](docs/QA_CHECKLIST.md#mac-validation-for-the-music-flow) for the live checks.
+If permission was denied, use System Settings → Privacy & Security → Automation → NanoDesk → Music, then press center again on **曲** to retry. If the item is not there, try opening **曲** again from the signed app. If the display shows an error code, record the number and the operation that produced it. Try playing the track in Music itself if playback fails. See [Music QA](docs/QA_CHECKLIST.md#mac-validation-for-the-music-flow) for the live checks.
 
 ### Video setup (planned)
 

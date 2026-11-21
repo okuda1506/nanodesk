@@ -20,8 +20,8 @@ RealityKit may import preview materials or grade highlights differently from Ble
 
 **LOCAL_MAC_VERIFIED (user report, previous build)** · The desktop preview built and ran on MacBook Air M3 under macOS 27.2.1 / Xcode 27.2, with the main desktop operations working. Trackpad pinch remains deferred.
 
-**CLOUD_IMPLEMENTED** · Japanese menus and now-playing graphics are drawn to the existing 240 × 376 screen surface. The appearance is original. Wheel clicks and ring drags route to the Music flow. A background AppleScript bridge controls Music through the Mac's Automation permission.
+**CLOUD_IMPLEMENTED** · Japanese menus and now-playing graphics are drawn to the existing 240 × 376 screen surface. Wheel clicks and ring drags route to the Music flow. The background AppleScript bridge now executes in NanoDesk using OSAKit. It reads Apple Event descriptors and surfaces specific failures instead of treating every transport or script error as a connection failure.
 
-**CLOUD_TESTED** · Portable Swift tests cover wheel angle direction and seam, press versus drag, front versus rear, bounded menu selection, zero/one/multiple tracks, permission denial, playback failure, artwork state, progress, pause/resume and returning with MENU. These tests use a mock Music service. The Swift bridge is type-checked on Linux. The Xcode project, entitlements and Swift syntax were inspected.
+**CLOUD_TESTED** · Portable Swift tests cover wheel angle direction and seam, press versus drag, front versus rear, bounded menu selection, zero/one/multiple tracks, permission denial and retry, playback failure, artwork state, progress, pause/resume and returning with MENU. These tests use a mock Music service. The Apple SDK declarations, Xcode project, entitlements and Swift syntax were inspected. The OSAKit bridge itself requires macOS to build and run.
 
 **BLOCKED_LOCAL_MAC** · Native build and launch, Music scripting and Automation from the hardened app, audible playback, artwork decoding, UV orientation, and display readability through glass still require the [Mac music QA](QA_CHECKLIST.md#mac-validation-for-the-music-flow).
