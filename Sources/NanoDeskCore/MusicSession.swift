@@ -4,13 +4,31 @@ struct MusicTrack: Equatable, Sendable {
     let id: String
     let title: String
     let artist: String
+    var album: String = ""
 }
 
 struct MusicPlayback: Equatable, Sendable {
+    enum RepeatMode: Int, Sendable { case off, one, all }
+
     let track: MusicTrack
     let isPlaying: Bool
     let elapsed: TimeInterval
     let duration: TimeInterval
+    var shuffleEnabled = false
+    var repeatMode: RepeatMode = .off
+
+    var timeline: (elapsed: String, remaining: String, fraction: Double) {
+        let position = elapsed.isFinite ? max(0, elapsed) : 0
+        guard duration.isFinite, duration > 0 else { return (Self.time(position), "–:––", 0) }
+        let current = min(position, duration)
+        return (Self.time(current), "-" + Self.time(floor(duration) - floor(current)), current / duration)
+    }
+
+    private static func time(_ seconds: TimeInterval) -> String {
+        let value = Int(min(seconds, 359_999))
+        if value >= 3600 { return String(format: "%d:%02d:%02d", value / 3600, value / 60 % 60, value % 60) }
+        return String(format: "%d:%02d", value / 60, value % 60)
+    }
 }
 
 enum MusicIssue: Error, Sendable {
@@ -66,8 +84,11 @@ final class MusicSession {
 
     private let service: any MusicService
     private(set) var page: Page = .home
-    private(set) var tracks: [MusicTrack] = []
+    private(set) var tracks: [MusicTrack] = [] {
+        didSet { updateTrackNumber(for: playback?.track.id) }
+    }
     private(set) var playback: MusicPlayback?
+    private(set) var playingTrackNumber: Int?
     private(set) var artwork: Data?
     private(set) var notice: String?
     private(set) var loadingSongs = false
@@ -226,6 +247,7 @@ final class MusicSession {
 
     private func install(_ value: MusicPlayback?) {
         if playback?.track.id != value?.track.id {
+            updateTrackNumber(for: value?.track.id)
             artwork = nil
             artworkID = nil
         }
@@ -233,6 +255,10 @@ final class MusicSession {
             playback = value
             changed?()
         }
+    }
+
+    private func updateTrackNumber(for id: String?) {
+        playingTrackNumber = id.flatMap { id in tracks.firstIndex(where: { $0.id == id }) }.map { $0 + 1 }
     }
 
     private func loadArtworkIfNeeded() async {

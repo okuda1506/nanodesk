@@ -80,15 +80,17 @@ struct MusicAppBridge: MusicService {
 
     private static func playback(_ row: NSAppleEventDescriptor) throws -> MusicPlayback? {
         guard row.numberOfItems != 0 else { return nil }
-        guard row.numberOfItems == 6, let id = row.atIndex(1)?.stringValue, !id.isEmpty,
+        guard row.numberOfItems == 9, let id = row.atIndex(1)?.stringValue, !id.isEmpty,
               let playing = row.atIndex(4)?.int32Value,
               let elapsed = row.atIndex(5)?.doubleValue, let length = row.atIndex(6)?.doubleValue,
               elapsed.isFinite, length.isFinite else {
             throw MusicIssue.invalidResponse
         }
-        return MusicPlayback(track: MusicTrack(id: id, title: row.atIndex(2)?.stringValue ?? "",
-                                               artist: row.atIndex(3)?.stringValue ?? ""),
-                             isPlaying: playing == 1, elapsed: max(0, elapsed), duration: max(0, length))
+        let track = MusicTrack(id: id, title: row.atIndex(2)?.stringValue ?? "",
+                               artist: row.atIndex(3)?.stringValue ?? "", album: row.atIndex(7)?.stringValue ?? "")
+        return MusicPlayback(track: track, isPlaying: playing == 1, elapsed: max(0, elapsed), duration: max(0, length),
+                             shuffleEnabled: row.atIndex(8)?.int32Value == 1,
+                             repeatMode: .init(rawValue: Int(row.atIndex(9)?.int32Value ?? 0)) ?? .off)
     }
 
     // Keep OSA objects on the worker. A private language instance keeps the
@@ -133,8 +135,21 @@ struct MusicAppBridge: MusicService {
                 set itemTrack to current track
                 set playingFlag to 0
                 if player state is playing then set playingFlag to 1
+                set albumName to ""
+                try
+                    set albumValue to album of itemTrack
+                    if albumValue is not missing value then set albumName to albumValue
+                end try
+                set shuffleFlag to 0
+                set repeatFlag to 0
+                try
+                    if shuffle enabled then set shuffleFlag to 1
+                    set repeatSetting to song repeat
+                    if repeatSetting is one then set repeatFlag to 1
+                    if repeatSetting is all then set repeatFlag to 2
+                end try
                 return {persistent ID of itemTrack, name of itemTrack, artist of itemTrack, ¬
-                    playingFlag, player position, duration of itemTrack}
+                    playingFlag, player position, duration of itemTrack, albumName, shuffleFlag, repeatFlag}
                 """
             let code: String
             switch self {
@@ -149,15 +164,11 @@ struct MusicAppBridge: MusicService {
                     play itemTrack
                     repeat 8 times
                         if player state is playing then
-                            set playingTrack to current track
-                            if persistent ID of playingTrack is targetID then
-                                return {persistent ID of playingTrack, name of playingTrack, artist of playingTrack, ¬
-                                    1, player position, duration of playingTrack}
-                            end if
+                            if persistent ID of current track is targetID then exit repeat
                         end if
                         delay 0.12
                     end repeat
-                    error "Music did not start the selected track" number -2701
+                    \(readPlayback)
                     """
             case .snapshot:
                 code = readPlayback

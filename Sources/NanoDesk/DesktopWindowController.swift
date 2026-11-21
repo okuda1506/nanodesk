@@ -14,6 +14,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     private let screen = MusicScreenRenderer()
     private var playbackPoll: Task<Void, Never>?
     private var screenUpdate: Task<Void, Never>?
+    private var titleFrame: Task<Void, Never>?
     private var screenDirty = false
     private var placement: DesktopPlacement
 
@@ -77,12 +78,17 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         applyPlacement()
         window?.orderFrontRegardless()
         canvas.requestFrame()
+        if screen.titleIsScrolling { queueScreenUpdate() }
         if playbackPoll == nil {
             playbackPoll = Task { [weak self] in
+                var clockMinute = Calendar.current.component(.minute, from: .now)
                 while !Task.isCancelled {
                     try? await Task.sleep(for: .seconds(1))
                     guard !Task.isCancelled, let music = self?.music else { break }
                     await music.refreshPlayback()
+                    let minute = Calendar.current.component(.minute, from: .now)
+                    if music.page == .playing && minute != clockMinute { self?.queueScreenUpdate() }
+                    clockMinute = minute
                 }
             }
         }
@@ -92,6 +98,8 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         pointerUp(at: nil)
         playbackPoll?.cancel()
         playbackPoll = nil
+        titleFrame?.cancel()
+        titleFrame = nil
         window?.orderOut(nil)
     }
 
@@ -194,6 +202,14 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
                     return
                 }
             }
+            titleFrame?.cancel()
+            titleFrame = nil
+            if screen.titleIsScrolling, window?.occlusionState.contains(.visible) == true {
+                titleFrame = Task { [weak self] in
+                    do { try await Task.sleep(for: .milliseconds(80)) } catch { return }
+                    self?.queueScreenUpdate()
+                }
+            }
         }
     }
 
@@ -209,6 +225,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
 
     @objc private func redrawOnReveal(_ notification: Notification) {
         canvas.requestFrame()
+        if screen.titleIsScrolling { queueScreenUpdate() }
     }
 
     private func applyPlacement(persist: Bool = true) {

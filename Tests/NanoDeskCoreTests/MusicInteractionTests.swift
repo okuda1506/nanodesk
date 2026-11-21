@@ -58,7 +58,7 @@ private actor MockMusic: MusicService {
 
 @MainActor
 struct MusicInteractionTests {
-    private let first = MusicTrack(id: "A", title: "第一曲", artist: "演奏者")
+    private let first = MusicTrack(id: "A", title: "第一曲", artist: "演奏者", album: "第一集")
     private let second = MusicTrack(id: "B", title: "第二曲", artist: "演奏者")
 
     @Test func menuOrderMatchesTheWheelAndUnavailableItemsStayOnTheirPage() async {
@@ -110,10 +110,12 @@ struct MusicInteractionTests {
         #expect(session.page == .playing)
         #expect(session.playback?.track == first)
         #expect(session.playback?.isPlaying == true)
+        #expect(session.playback?.track.album == "第一集" && session.playingTrackNumber == 1)
         #expect(session.artwork == Data([0, 1, 2]))
         await service.advance(to: 43)
         await session.refreshPlayback()
         #expect(session.playback?.elapsed == 43)
+        #expect(session.playback?.timeline.remaining == "-1:17")
         await session.press(.playPause)
         #expect(session.playback?.isPlaying == false)
         await session.press(.playPause)
@@ -141,6 +143,7 @@ struct MusicInteractionTests {
         await session.press(.select)
         await session.press(.next)
         #expect(session.playback?.track == second)
+        #expect(session.playingTrackNumber == 2 && session.playback?.track.album == "")
         await session.press(.next)
         await session.press(.menu)
         #expect(session.selection == 1)
@@ -159,6 +162,29 @@ struct MusicInteractionTests {
         #expect(denied.tracks.isEmpty && denied.notice == MusicIssue.denied.message)
         await denied.press(.menu)
         #expect(denied.notice == nil && denied.page == .music)
+    }
+
+    @Test func playbackClockHandlesUnknownDurationLongTracksAndEndOfTrack() {
+        func timeline(_ elapsed: Double, _ duration: Double) -> (elapsed: String, remaining: String, fraction: Double) {
+            MusicPlayback(track: first, isPlaying: true, elapsed: elapsed, duration: duration).timeline
+        }
+        #expect(timeline(59.8, 199.2) == ("0:59", "-2:20", 59.8 / 199.2))
+        #expect(timeline(3_661, 7_205) == ("1:01:01", "-59:04", 3_661.0 / 7_205.0))
+        #expect(timeline(124, 120) == ("2:00", "-0:00", 1))
+        #expect(timeline(-3, 60) == ("0:00", "-1:00", 0))
+        #expect(timeline(23, 0) == ("0:23", "–:––", 0))
+        #expect(timeline(.nan, .infinity) == ("0:00", "–:––", 0))
+    }
+
+    @Test func externalPlaybackHasNoInventedListPosition() async throws {
+        let service = MockMusic([first])
+        _ = try await service.play(first.id)
+        let session = MusicSession(service: service)
+        session.scroll(steps: 9)
+        await session.press(.select)
+        #expect(session.page == .playing && session.playback?.track.album == first.album)
+        #expect(session.playingTrackNumber == nil)
+        #expect(await service.libraryRequests == 0)
     }
 
     @Test func centerRetriesAfterAutomationAccessIsRestored() async {

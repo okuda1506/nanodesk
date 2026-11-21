@@ -12,8 +12,8 @@ final class MusicScreenRenderer {
 
     private static let browse = Palette(background: .white, text: rgb(22, 26, 32),
                                         muted: rgb(82, 96, 113), accent: rgb(38, 91, 165))
-    private static let playback = Palette(background: rgb(30, 30, 32), text: rgb(245, 245, 247),
-                                          muted: rgb(192, 194, 200), accent: rgb(153, 190, 240))
+    private static let playback = Palette(background: rgb(18, 18, 20), text: .white,
+                                          muted: rgb(206, 206, 210), accent: rgb(52, 137, 232))
 
     private let width = 240
     private let height = 376
@@ -23,8 +23,12 @@ final class MusicScreenRenderer {
         .flatMap { NSImage(contentsOf: $0) }
     private var artworkBytes: Data?
     private var artworkImage: NSImage?
+    private var scrollingTrackID: String?
+    private var scrollStart: TimeInterval = 0
+    var titleIsScrolling: Bool { scrollingTrackID != nil }
 
     func image(for session: MusicSession) -> CGImage? {
+        if session.page != .playing || session.playback == nil { scrollingTrackID = nil }
         let palette = session.page == .playing ? Self.playback : Self.browse
         let rgba = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
@@ -46,22 +50,11 @@ final class MusicScreenRenderer {
         case .songs:
             detailHeader("曲", palette: palette)
             songs(session)
-        case .playing:
-            detailHeader("再生中", palette: palette)
-            if let playback = session.playback { nowPlaying(playback, artwork: session.artwork) }
-            else if session.notice == nil { message("再生中の曲はありません。", color: palette.muted) }
-        }
-
-        if let notice = session.notice, !session.loadingSongs {
-            let showFooter = session.page == .playing && session.playback != nil
-            if showFooter {
-                fill(palette.background, 0, 304, 240, 72)
-                message(notice, color: palette.muted, y: 309, height: 51, size: 12)
-            } else {
-                message(notice, color: palette.muted,
-                        y: session.page == .songs && session.tracks.isEmpty ? 107 : 307,
-                        height: 63, size: 12)
+            if let notice = session.notice, !session.loadingSongs {
+                message(notice, color: palette.muted, y: session.tracks.isEmpty ? 107 : 307, height: 63, size: 12)
             }
+        case .playing:
+            nowPlaying(session)
         }
         return context.makeImage()
     }
@@ -185,7 +178,7 @@ final class MusicScreenRenderer {
                       let image = CGImageSourceCreateThumbnailAtIndex(source, 0, [
                         kCGImageSourceCreateThumbnailFromImageAlways: true,
                         kCGImageSourceCreateThumbnailWithTransform: true,
-                        kCGImageSourceThumbnailMaxPixelSize: 180
+                        kCGImageSourceThumbnailMaxPixelSize: width
                       ] as CFDictionary) else { return nil }
                 return NSImage(cgImage: image, size: CGSize(width: CGFloat(image.width), height: CGFloat(image.height)))
             }
@@ -193,32 +186,146 @@ final class MusicScreenRenderer {
         return artworkImage
     }
 
-    private func nowPlaying(_ playback: MusicPlayback, artwork: Data?) {
+    private func nowPlaying(_ session: MusicSession) {
         let palette = Self.playback
-        let coverRect = CGRect(x: 47, y: 86, width: 146, height: 146)
-        fill(palette.muted.withAlphaComponent(0.13), coverRect.minX, coverRect.minY, coverRect.width, coverRect.height)
-        if let image = decodedArtwork(artwork) {
-            let scale = min(coverRect.width / image.size.width, coverRect.height / image.size.height)
-            let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
-            image.draw(in: CGRect(x: coverRect.midX - size.width / 2, y: coverRect.midY - size.height / 2,
-                                  width: size.width, height: size.height),
-                       from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
-        } else {
-            fill(palette.accent.withAlphaComponent(0.8), 47, 86, 146, 2)
-            text("♪", at: CGRect(x: 47, y: 111, width: 146, height: 96),
-                 size: 67, color: palette.accent, align: .center)
+        playbackStatus(session.playback)
+        guard let playback = session.playback else {
+            message(session.notice ?? "再生中の曲はありません。", color: palette.muted)
+            return
         }
-        text(playback.track.title.isEmpty ? "タイトルなし" : playback.track.title,
-             at: CGRect(x: 17, y: 245, width: 206, height: 26), size: 17, weight: .semibold, color: palette.text)
-        text(playback.track.artist, at: CGRect(x: 17, y: 272, width: 206, height: 22), size: 14, color: palette.muted)
-        let fraction = playback.duration > 0 ? min(max(playback.elapsed / playback.duration, 0), 1) : 0
-        fill(palette.muted.withAlphaComponent(0.38), 17, 309, 206, 5)
-        fill(palette.accent, 17, 309, 206 * fraction, 5)
-        text(time(playback.elapsed), at: CGRect(x: 17, y: 324, width: 81, height: 18), size: 12, color: palette.muted)
-        text(time(playback.duration), at: CGRect(x: 142, y: 324, width: 81, height: 18),
-             size: 12, color: palette.muted, align: .right)
-        text(playback.isPlaying ? "▶" : "Ⅱ", at: CGRect(x: 185, y: 51, width: 36, height: 23),
-             size: 15, color: palette.accent, align: .right)
+        gradient(CGRect(x: 0, y: 20, width: 240, height: 61),
+                 top: Self.rgb(72, 72, 74), bottom: .black)
+        text(playback.track.artist, at: CGRect(x: 5, y: 24, width: 230, height: 17),
+             size: 12, weight: .semibold, color: palette.muted, align: .center)
+        playbackTitle(playback, animate: session.notice == nil)
+        text(playback.track.album, at: CGRect(x: 5, y: 59, width: 230, height: 19),
+             size: 12, weight: .semibold, color: palette.muted, align: .center)
+
+        playbackCover(session.artwork)
+        if let notice = session.notice {
+            fill(palette.background, 0, 296, 240, 80)
+            message(notice, color: palette.muted, y: 301, height: 72, size: 12)
+            return
+        }
+        let timeline = playback.timeline
+        let timeFont = NSFont.boldSystemFont(ofSize: 12)
+        let labels = [timeline.elapsed, timeline.remaining]
+        let labelWidth = labels.map { ($0 as NSString).size(withAttributes: [.font: timeFont]).width }.max() ?? 0
+        let inset = max(46, ceil(labelWidth) + 9)
+        let bar = CGRect(x: inset, y: 341, width: 240 - inset * 2, height: 9)
+        gradient(bar, top: Self.rgb(201, 205, 211), bottom: Self.rgb(246, 246, 247))
+        if timeline.fraction > 0 {
+            let played = CGRect(x: bar.minX, y: bar.minY, width: bar.width * timeline.fraction, height: bar.height)
+            gradient(played, top: Self.rgb(143, 199, 253), bottom: palette.accent)
+        }
+        text(timeline.elapsed, at: CGRect(x: 2, y: 337, width: inset - 7, height: 17),
+             size: 12, weight: .bold, color: .white, align: .right)
+        text(timeline.remaining, at: CGRect(x: bar.maxX + 5, y: 337, width: inset - 7, height: 17),
+             size: 12, weight: .bold, color: .white)
+        if let number = session.playingTrackNumber {
+            text("\(number) / \(session.tracks.count)", at: CGRect(x: 4, y: 354, width: 232, height: 18),
+                 size: 12, weight: .medium, color: palette.text, align: .center)
+        }
+    }
+
+    private func playbackCover(_ artwork: Data?) {
+        let cover = CGRect(x: 0, y: 81, width: 240, height: 240)
+        let footer = CGRect(x: 0, y: cover.maxY, width: 240, height: 55)
+        gradient(footer, top: Self.rgb(64, 64, 68), bottom: Self.playback.background)
+        guard let image = decodedArtwork(artwork) else {
+            missingCover(in: cover)
+            return
+        }
+        let scale = min(cover.width / image.size.width, cover.height / image.size.height)
+        let size = CGSize(width: image.size.width * scale, height: image.size.height * scale)
+        let dest = CGRect(x: cover.midX - size.width / 2, y: cover.midY - size.height / 2,
+                          width: size.width, height: size.height)
+        image.draw(in: dest, from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+        context.clip(to: footer)
+        context.translateBy(x: 0, y: cover.maxY * 2)
+        context.scaleBy(x: 1, y: -1)
+        image.draw(in: dest, from: .zero, operation: .sourceOver, fraction: 0.27, respectFlipped: true, hints: nil)
+        context.restoreGState()
+        gradient(footer, top: .clear, bottom: NSColor.black.withAlphaComponent(0.55))
+    }
+
+    private func playbackTitle(_ playback: MusicPlayback, animate: Bool) {
+        let rect = CGRect(x: 4, y: 40, width: 232, height: 21)
+        let title = playback.track.title.isEmpty ? "タイトルなし" : playback.track.title
+        let label = title as NSString
+        let attributes: [NSAttributedString.Key: Any] = [.font: NSFont.boldSystemFont(ofSize: 16), .foregroundColor: NSColor.white]
+        let size = label.size(withAttributes: attributes)
+        guard animate, playback.isPlaying, size.width > rect.width,
+              let context = NSGraphicsContext.current?.cgContext else {
+            scrollingTrackID = nil
+            text(title, at: rect, size: 16, weight: .bold, color: .white, align: .center)
+            return
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        if scrollingTrackID != playback.track.id {
+            scrollingTrackID = playback.track.id
+            scrollStart = now
+        }
+        let distance = size.width + 24
+        let speed: CGFloat = 22
+        let phase = (now - scrollStart).truncatingRemainder(dividingBy: 1.5 + distance / speed)
+        let x = rect.minX - max(0, phase - 1.5) * speed
+        let y = (rect.midY - size.height / 2).rounded()
+        context.saveGState()
+        context.clip(to: rect)
+        label.draw(at: CGPoint(x: x, y: y), withAttributes: attributes)
+        label.draw(at: CGPoint(x: x + distance, y: y), withAttributes: attributes)
+        context.restoreGState()
+    }
+
+    private func playbackStatus(_ playback: MusicPlayback?) {
+        gradient(CGRect(x: 0, y: 0, width: 240, height: 20), top: Self.rgb(86, 86, 89), bottom: Self.rgb(61, 61, 64))
+        let clock = Date.now.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute())
+        text(clock, at: CGRect(x: 55, y: 2, width: 130, height: 16),
+             size: 12, weight: .semibold, color: Self.playback.muted, align: .center)
+        if let playback {
+            if playback.shuffleEnabled { statusSymbol("shuffle", x: 4, width: 19) }
+            if playback.repeatMode != .off {
+                statusSymbol(playback.repeatMode == .one ? "repeat.1" : "repeat", x: playback.shuffleEnabled ? 28 : 4, width: 18)
+            }
+            statusSymbol(playback.isPlaying ? "play.fill" : "pause.fill", x: 191, width: 14)
+        }
+        statusSymbol("battery.100", x: 210, width: 26)
+    }
+
+    private func statusSymbol(_ name: String, x: CGFloat, width: CGFloat) {
+        let config = NSImage.SymbolConfiguration(paletteColors: [Self.playback.muted])
+        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return }
+        let scale = min(width / symbol.size.width, 14 / symbol.size.height)
+        let w = symbol.size.width * scale, h = symbol.size.height * scale
+        symbol.draw(in: CGRect(x: x + (width - w) / 2, y: 10 - h / 2, width: w, height: h),
+                    from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+    }
+
+    private func missingCover(in rect: CGRect) {
+        gradient(rect, top: Self.rgb(59, 68, 78), bottom: Self.rgb(24, 29, 36))
+        // Shape in the square's local coordinates, with two joined notes and tilted heads.
+        guard let context = NSGraphicsContext.current?.cgContext else { return }
+        context.saveGState()
+        defer { context.restoreGState() }
+        context.translateBy(x: rect.minX, y: rect.minY)
+        let note = NSBezierPath()
+        note.move(to: CGPoint(x: 96, y: 58))
+        note.line(to: CGPoint(x: 187, y: 43))
+        note.line(to: CGPoint(x: 187, y: 161))
+        note.curve(to: CGPoint(x: 158, y: 177), controlPoint1: CGPoint(x: 187, y: 175), controlPoint2: CGPoint(x: 169, y: 182))
+        note.curve(to: CGPoint(x: 176, y: 145), controlPoint1: CGPoint(x: 129, y: 170), controlPoint2: CGPoint(x: 147, y: 142))
+        note.line(to: CGPoint(x: 176, y: 84))
+        note.line(to: CGPoint(x: 107, y: 96))
+        note.line(to: CGPoint(x: 107, y: 175))
+        note.curve(to: CGPoint(x: 77, y: 194), controlPoint1: CGPoint(x: 107, y: 190), controlPoint2: CGPoint(x: 91, y: 198))
+        note.curve(to: CGPoint(x: 96, y: 159), controlPoint1: CGPoint(x: 47, y: 187), controlPoint2: CGPoint(x: 65, y: 153))
+        note.close()
+        note.addClip()
+        gradient(note.bounds, top: Self.rgb(206, 215, 223), bottom: Self.rgb(154, 172, 192))
     }
 
     private func detailHeader(_ title: String, palette: Palette) {
@@ -266,11 +373,5 @@ final class MusicScreenRenderer {
 
     private static func rgb(_ red: CGFloat, _ green: CGFloat, _ blue: CGFloat) -> NSColor {
         NSColor(srgbRed: red / 255, green: green / 255, blue: blue / 255, alpha: 1)
-    }
-
-    private func time(_ value: TimeInterval) -> String {
-        guard value.isFinite else { return "0:00" }
-        let seconds = Int(max(0, min(value, 359_999)))
-        return String(format: "%d:%02d", seconds / 60, seconds % 60)
     }
 }
