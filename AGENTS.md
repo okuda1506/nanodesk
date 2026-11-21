@@ -17,10 +17,11 @@ Before making final geometric or visual fidelity claims, inspect all of:
 - **Actual pixels** of front, back, and camera/edge reference photographs
 - The fifth-generation mechanical drawing (Figure 16-64), or explicitly record that it is unavailable
 
-**IMPORTANT: The Markdown guide currently embeds photographs from external domains; the binary photos are not included in the repo.** Links being present does not mean the images were successfully viewed. This was confirmed as a blocker when Codex Cloud received HTTP 403 fetching the photos/drawing.
+**IMPORTANT: Four reference PNG files are now committed in `assets/references/photos/`.** Codex Cloud previously encountered HTTP 403 for the original external photo hosts and Apple's drawing; use the local files first. The Figure 16-64 mechanical drawing is still only an external reference, not a committed asset. The existence of an image file does not prove that the agent actually inspected it.
 
-- First check `assets/references/photos/` for locally committed, properly attributed photographs.
-- If photographs are absent, first request that the user attach them directly in the Codex conversation or add licensed copies to the repository. See `docs/REFERENCE_ACCESS.md`.
+- First open and inspect the four committed PNGs: `assets/references/photos/nano5_front_back.png`, `nano5_front.png`, `nano5_back.png`, and `nano5_camera.png`. Verify actual pixels, not just the paths.
+- These images show a **purple** A1320 for shape and part placement; the product's intended default finish is **silver**. They are not calibrated engineering views.
+- If any photograph is unreadable, request that the user attach it in the Codex conversation. See `docs/REFERENCE_ACCESS.md`.
 - If images/drawing cannot be opened, mark them `BLOCKED_REFERENCE_IMAGES` / `BLOCKED_DIMENSIONAL_DRAWING` in a findings document.
 - **Never claim that photo comparison, authentic appearance, or dimensional drawing validation succeeded unless the relevant source was actually inspected.**
 - Blockout mesh creation, asset structure, deterministic geometry, and renders may continue with official verified outer dimensions, **but a photo-accurate final model and PR approval cannot be claimed** until missing references are available.
