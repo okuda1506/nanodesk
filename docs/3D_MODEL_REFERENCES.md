@@ -2,44 +2,44 @@
 
 This is the **reference pack for Phase 1** of NanoDesk. Use it with [SPEC.md](SPEC.md) and the machine-readable [dimensions JSON](../assets/references/ipod_nano_5g_dimensions.json).
 
-> **Reference access warning (Codex Cloud, 2026-11-21):** Cloud modeling encountered **HTTP 403** for the external photo and dimensional-drawing hosts. As a result, the embedded images below may not be accessible to the agent even when the Markdown page renders normally in a browser. **No photo binaries are currently committed.** See [reference recovery instructions](REFERENCE_ACCESS.md) and the [attributed local photo directory](../assets/references/photos/README.md). Without opening real photo pixels and the drawing, only provisional/blockout geometry can be verified; do **not** claim photo-accurate fidelity or drawing-based dimensional verification.
+> **Local photo sources now available (2026-11-21):** Four reference PNGs are committed in [`assets/references/photos/`](../assets/references/photos/README.md). These local files replace fragile external image embeds for Codex Cloud (which previously encountered HTTP 403). Codex must open and inspect the actual pixels. **Figure 16-64 remains an external-only drawing**; until it is genuinely inspected, engineering-drawing callouts are unverified. See [reference recovery instructions](REFERENCE_ACCESS.md).
 
 **Device:** Apple iPod nano (5th generation), model A1320, introduced in September 2009. Do **not** accidentally model the 4th-generation nano (A1285); the camera, screen, finish, and click-wheel dimensions differ.
 
 ## 1. Reference photographs
 
-The photographs below are **embedded from Wikimedia Commons**, not copied into this repository as binary files. Each item includes its source page, creator, and license. Click the source link for the original-resolution photo and reuse conditions.
+The photographs below are **local, repository-hosted copies** of user-supplied Wikimedia Commons references. Each entry retains its original source page, author, and CC BY-SA 3.0 license. These copies show a **purple** device; use them to model geometry while keeping NanoDesk's default **silver** finish. The source links document provenance and license terms.
 
 ### Front and back — primary silhouette reference
 
-![Purple fifth-generation iPod nano photographed from the front and rear](https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/IPod-Nano-5G-front-back.png/523px-IPod-Nano-5G-front-back.png)
+![Purple fifth-generation iPod nano photographed from the front and rear](../assets/references/photos/nano5_front_back.png)
 
 - **Source:** [Lubyanka, *iPod Nano 5th generation purple front and back*, Wikimedia Commons](https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-front-back.png)
-- **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) — photo by **Lubyanka**, unmodified and linked from Wikimedia Commons.
+- **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/) — photo by **Lubyanka**, provided as a local modeling reference with attribution to Wikimedia Commons.
 - **Use for:** Outer contour, screen and wheel vertical alignment, camera placement, rounded lower edge, rear shell, and color/reflection differences.
 - **Important:** The reference is **purple**. NanoDesk's default device color in the specification is **silver**. Use the photo for geometry, not for the final material base color.
 - **Important:** This composite is **not a metrically calibrated orthographic plate**. Lens perspective, crop, and alignment can distort measurements.
 
 ### Front — proportions and control placement
 
-![Front of purple fifth-generation iPod nano](https://commons.wikimedia.org/wiki/Special:FilePath/IPod-Nano-5G-front.png?width=320)
+![Front of purple fifth-generation iPod nano](../assets/references/photos/nano5_front.png)
 
 - **Source:** [Lubyanka, *iPod Nano 5th generation purple front*, Wikimedia Commons](https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-front.png)
-- **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Photo by **Lubyanka**; embedded as an unmodified remote reference.
+- **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Photo by **Lubyanka**; provided as a local reference copy.
 - **Use for:** Screen aperture, wheel ring, centered Select button, labels and button layout, top/bottom body margins.
 
 ### Back — rear geometry and video camera
 
-![Back of purple fifth-generation iPod nano](https://commons.wikimedia.org/wiki/Special:FilePath/IPod-Nano-5G-back.png?width=320)
+![Back of purple fifth-generation iPod nano](../assets/references/photos/nano5_back.png)
 
 - **Source:** [Lubyanka, *iPod Nano 5th generation purple back*, Wikimedia Commons](https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-back.png)
-- **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Photo by **Lubyanka**; unmodified remote reference.
+- **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Photo by **Lubyanka**; provided as a local reference copy.
 - **Use for:** Rear convex/reflective finish, camera and microphone placement, back surface proportions.
 - **IP note:** Apple logo/wordmarks visible in some original photographs are trademarks. Reference photos do not grant permission to reproduce logos in a distributed app.
 
 ### Rear video camera / microphone close-up
 
-![Camera and microphone detail on fifth-generation iPod nano](https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/IPod-nano-5G-camera-view-1.png/640px-IPod-nano-5G-camera-view-1.png)
+![Camera and microphone detail on fifth-generation iPod nano](../assets/references/photos/nano5_camera.png)
 
 - **Source:** [Lubyanka, *Photograph of the camera, microphone and speaker detail*, Wikimedia Commons](https://commons.wikimedia.org/wiki/File:IPod-nano-5G-camera-view-1.png)
 - **License:** [CC BY-SA 3.0](https://creativecommons.org/licenses/by-sa/3.0/). Photo by **Lubyanka**; unmodified remote reference.
@@ -118,9 +118,9 @@ Exact positions of the screen, wheel center, camera lens center, top Hold switch
 
 ## 4. Public repository image policy
 
-- **Current strategy:** display photographs via external links/embeds with clear attribution. **No third-party image binary has been committed to Git.** Repository renders depend on Wikimedia availability.
+- **Current strategy:** keep four reference photographs locally in `assets/references/photos/` with explicit creator, source URL, and CC BY-SA 3.0 license attribution. Their availability no longer depends on Codex Cloud being able to fetch the external photo hosts.
 - These photographs may be licensed for reuse, but their **photograph copyright** and the **depicted Apple trademarks/product design** are separate questions.
-- If image files are later copied into Git, preserve author/source/license notices and modification history; comply with any CC BY-SA requirements.
+- If any additional images are copied into Git, preserve author/source/license notices and modification history; comply with CC BY-SA requirements where applicable.
 - Do not add photos from random product listings, news articles, or search thumbnails without verifying re-use rights.
 - Do not treat photo textures, Apple firmware graphics, or Apple logos as freely reusable runtime app assets.
 
