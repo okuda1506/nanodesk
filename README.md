@@ -22,6 +22,13 @@ The goal is to display **only the 3D device**, without a visible app window. Use
 
 The full product requirements, architecture proposal, development phases, risks, and acceptance criteria are documented in **[docs/SPEC.md](docs/SPEC.md)**. This file is the source of truth for Codex.
 
+## 3D Modeling References
+
+- **[Photo reference gallery and mechanical modeling guide](docs/3D_MODEL_REFERENCES.md)** — front, back, click wheel, rear camera, top/bottom references, photo attribution and licenses, plus source engineering drawing.
+- **[Machine-readable physical dimensions](assets/references/ipod_nano_5g_dimensions.json)** — Apple-published size, display, weight, and camera output; wheel dimensions from the engineering drawing are marked for validation.
+
+The photos are embedded from Wikimedia Commons with credit, **not committed as third-party binary files**. Refer to these sources and inspect the original Apple dimensional drawing before attempting a high-fidelity Blender model in Phase 1.
+
 ## Technology (Planned)
 
 | Area | Technology |
