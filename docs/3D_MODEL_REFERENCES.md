@@ -2,6 +2,8 @@
 
 This is the **reference pack for Phase 1** of NanoDesk. Use it with [SPEC.md](SPEC.md) and the machine-readable [dimensions JSON](../assets/references/ipod_nano_5g_dimensions.json).
 
+> **Reference access warning (Codex Cloud, 2026-11-21):** Cloud modeling encountered **HTTP 403** for the external photo and dimensional-drawing hosts. As a result, the embedded images below may not be accessible to the agent even when the Markdown page renders normally in a browser. **No photo binaries are currently committed.** See [reference recovery instructions](REFERENCE_ACCESS.md) and the [attributed local photo directory](../assets/references/photos/README.md). Without opening real photo pixels and the drawing, only provisional/blockout geometry can be verified; do **not** claim photo-accurate fidelity or drawing-based dimensional verification.
+
 **Device:** Apple iPod nano (5th generation), model A1320, introduced in September 2009. Do **not** accidentally model the 4th-generation nano (A1285); the camera, screen, finish, and click-wheel dimensions differ.
 
 ## 1. Reference photographs
