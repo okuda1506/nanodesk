@@ -135,6 +135,13 @@ Show a realistically proportioned, three-dimensional iPod nano on the Mac deskto
 - Create a distinct back, not a mirrored front. Explain in the README that the rendered back camera's direction is **not connected** to the Mac camera's physical direction.
 - Use an efficient real-time mesh; avoid unnecessary high polygon counts.
 
+### 5.1A Photo and mechanical references
+
+- **Mandatory modeling inputs for Phase 1:** [photo reference gallery and engineering drawing](3D_MODEL_REFERENCES.md) and [machine-readable physical dimensions](../assets/references/ipod_nano_5g_dimensions.json).
+- Preserve the official outer dimensions (90.7 x 38.7 x 6.2 mm) and verify wheel and control geometry against the fifth-generation drawing rather than assuming dimensions from photographs.
+- Use the included photographs as **references only**. They are externally hosted and attributed; do not copy third-party photos, Apple logos, proprietary product imagery, or firmware artwork into runtime assets without rights review.
+- Produce front, back, side, top/bottom and 45-degree renders for review **before** finalizing the USDZ.
+
 ### 5.2 Editable and runtime assets
 
 - Keep an editable source scene, ideally Blender (e.g. assets/source/ipod_nano_5g.blend).
