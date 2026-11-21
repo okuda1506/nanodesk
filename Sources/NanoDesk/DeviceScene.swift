@@ -128,11 +128,12 @@ final class DeviceScene {
         guard var model = screenSurface.components[ModelComponent.self] else {
             throw DeviceSceneError.screenUnavailable
         }
-        var glass = model.materials.first as? PhysicallyBasedMaterial ?? PhysicallyBasedMaterial()
-        glass.emissiveColor = .init(color: .white, texture: .init(texture))
-        glass.emissiveIntensity = 1
-        glass.faceCulling = .back
-        model.materials = [glass]
+        // Use the raster as the display's primary color. A white emissive
+        // fallback or scene lighting must not wash out the menu's dark pixels.
+        var display = UnlitMaterial(applyPostProcessToneMap: false)
+        display.color = .init(tint: .white, texture: .init(texture))
+        display.faceCulling = .back
+        model.materials = [display]
         screenSurface.components.set(model)
         displayTexture = texture
     }

@@ -14,17 +14,19 @@ final class MusicScreenRenderer {
     private var artworkImage: NSImage?
 
     func image(for session: MusicSession) -> CGImage? {
+        let rgba = CGBitmapInfo.byteOrder32Big.rawValue | CGImageAlphaInfo.premultipliedLast.rawValue
         guard let space = CGColorSpace(name: CGColorSpace.sRGB),
               let context = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8,
                                       bytesPerRow: width * 4, space: space,
-                                      bitmapInfo: CGImageAlphaInfo.noneSkipLast.rawValue) else { return nil }
+                                      bitmapInfo: rgba) else { return nil }
+        context.setFillColor(ink.cgColor)
+        context.fill(CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height)))
         context.translateBy(x: 0, y: CGFloat(height))
         context.scaleBy(x: 1, y: -1)
         let previous = NSGraphicsContext.current
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
         defer { NSGraphicsContext.current = previous }
 
-        fill(ink, 0, 0, 240, 376)
         fill(cyan, 0, 0, 240, 2)
         text("NANODESK", at: CGRect(x: 15, y: 13, width: 110, height: 19), size: 12,
              weight: .semibold, color: cyan)
