@@ -13,7 +13,23 @@ The first six views use orthographic projection. The two 45° views use a perspe
 | [Front](../assets/renders/front.png) | [Left](../assets/renders/left.png) | [Top](../assets/renders/top.png) | [Front 45°](../assets/renders/front_45.png) | [Lens and microphone](../assets/renders/camera_detail.png) |
 | [Back](../assets/renders/back.png) | [Right](../assets/renders/right.png) | [Bottom](../assets/renders/bottom.png) | [Rear 45°](../assets/renders/back_45.png) | [Dock and jack](../assets/renders/dock_detail.png) |
 
-## Lighting comparison
+## Ambient lighting comparison
+
+![Front and 45-degree comparisons between the previous lighting and the panel-free ambient lighting](../assets/renders/ambient_review/comparison.jpg)
+
+| View | Previous lighting | Ambient lighting |
+|---|---|---|
+| Front | [Before](../assets/renders/lighting_review/front.png) | [After](../assets/renders/ambient_review/front.png) |
+| Front 45° | [Before](../assets/renders/lighting_review/front_45.png) | [After](../assets/renders/ambient_review/front_45.png) |
+
+The current renders use a smooth ambient gradient for the metal's curved shading. The reflection panels are absent. Standard color management and a low-tone curve give the screen and click wheel deeper blacks against the silver. The camera framing, device geometry and material values match the earlier renders.
+
+```bash
+blender -b -t 4 --python-exit-code 1 -P assets/scripts/generate_model.py -- --ambient-review
+python3 assets/scripts/review_sheet.py --ambient-review
+```
+
+## Previous lighting comparison
 
 ![The same silver A1320 from the front and front 45 degrees, before and after adjusting the studio lighting](../assets/renders/lighting_review/comparison.jpg)
 

@@ -8,8 +8,10 @@ font_dir = Path('/usr/share/fonts/truetype/dejavu')
 def font(name, size):
     return ImageFont.truetype(str(font_dir / (name + '.ttf')), size)
 
-lighting_review = '--lighting-review' in sys.argv[1:]
-canvas = Image.new('RGB', (1600, 980 if lighting_review else 1350), '#f2f0eb')
+args = sys.argv[1:]
+ambient_review = '--ambient-review' in args
+lighting_review = '--lighting-review' in args
+canvas = Image.new('RGB', (1600, 980 if ambient_review or lighting_review else 1350), '#f2f0eb')
 draw = ImageDraw.Draw(canvas)
 dark = '#24313a'
 muted = '#556168'
@@ -28,17 +30,20 @@ def fit(name, box):
     im.thumbnail((w,h), Image.Resampling.LANCZOS)
     canvas.paste(im, (x+(w-im.width)//2,y+(h-im.height)//2))
 
-if lighting_review:
+if ambient_review or lighting_review:
+    folder = 'ambient_review' if ambient_review else 'lighting_review'
     label(60,38,'NanoDesk   /   Silver A1320',23,muted)
-    label(60,76,'Lighting comparison',50,dark,'DejaVuSerif')
+    title = 'Ambient lighting comparison' if ambient_review else 'Lighting comparison'
+    label(60,76,title,50,dark,'DejaVuSerif')
     draw.line((60,157,1540,157), fill='#afb3b1', width=2)
     for group_x, name, title in [(60, 'front', 'Front'), (820, 'front_45', 'Front 45°')]:
         label(group_x,189,title,27)
-        for offset, caption, source in [(0, 'Before', name), (370, 'After', f'lighting_review/{name}')]:
+        before = f'lighting_review/{name}' if ambient_review else name
+        for offset, caption, source in [(0, 'Before', before), (370, 'After', f'{folder}/{name}')]:
             x = group_x + offset
             label(x,238,caption,20,muted)
             fit(source,(x,269,350,660))
-    canvas.save(renders/'lighting_review/comparison.jpg',quality=95,subsampling=0,optimize=True)
+    canvas.save(renders/folder/'comparison.jpg',quality=95,subsampling=0,optimize=True)
     sys.exit(0)
 
 label(60,43,'NanoDesk   /   Model review 01',23,muted)

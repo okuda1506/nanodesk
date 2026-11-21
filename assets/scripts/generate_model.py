@@ -365,17 +365,38 @@ def reflection_studio(tree, background, lighting_review):
             sx *= 1.03
         lobe = np.exp(-.5*((delta/sx)**4 + ((latitude-el)/sy)**4))
         rgb += lobe[:, :, None] * np.array(color) * gain
+    add_environment_texture(tree, background, rgb, 'Procedural studio | original', .83)
+
+def ambient_environment(tree, background):
+    import numpy as np
+
+    width, height = 384, 192
+    latitude = ((np.arange(height)[:, None] + .5) / height - .5) * np.pi
+    longitude = ((np.arange(width)[None, :] + .5) / width - .5) * 2 * np.pi
+    x = np.cos(longitude) * np.cos(latitude)
+    y = np.sin(longitude) * np.cos(latitude)
+    z = np.sin(latitude)
+    # A low-frequency sky-to-ground gradient gives the curved shell shading
+    # without any bright panels, reflection stripes or individual emitters.
+    intensity = .50 + .34 * x - .16 * y + .14 * z
+    rgb = intensity[:, :, None] * np.array((1.0, .99, .98))
+    add_environment_texture(tree, background, rgb, 'Ambient gradient', 1.0)
+
+def add_environment_texture(tree, background, rgb, name, strength):
+    import numpy as np
+
+    height, width, _ = rgb.shape
     rgba = np.ones((height, width, 4),dtype=np.float32)
     rgba[:,:,:3] = rgb
-    img = bpy.data.images.new('Procedural studio | original',width,height,float_buffer=True)
+    img = bpy.data.images.new(name,width,height,float_buffer=True)
     img.colorspace_settings.name='Non-Color'
     img.pixels.foreach_set(rgba.ravel()); img.pack()
     env = tree.nodes.new('ShaderNodeTexEnvironment')
     env.image = img
     tree.links.new(env.outputs[0],background.inputs[0])
-    background.inputs[1].default_value=.83
+    background.inputs[1].default_value=strength
 
-def set_studio(lighting_review):
+def set_studio(lighting_review, ambient_review):
     world=scene.world
     world.use_nodes=True
     tree=world.node_tree
@@ -383,12 +404,15 @@ def set_studio(lighting_review):
     bg.inputs[0].default_value=(.34,.36,.40,1); bg.inputs[1].default_value=.44
     # Neutral studio background, with a slightly cooler edge than the metal.
     back=tree.nodes.new('ShaderNodeBackground')
-    back.inputs[0].default_value=(.037,.047,.063,1)
+    back.inputs[0].default_value = (.062, .075, .09, 1) if ambient_review else (.037,.047,.063,1)
     mix=tree.nodes.new('ShaderNodeMixShader'); ray=tree.nodes.new('ShaderNodeLightPath')
     tree.links.new(ray.outputs['Is Camera Ray'],mix.inputs[0])
     tree.links.new(bg.outputs[0],mix.inputs[1]); tree.links.new(back.outputs[0],mix.inputs[2])
     tree.links.new(mix.outputs[0],tree.nodes.get('World Output').inputs['Surface'])
-    reflection_studio(tree,bg,lighting_review)
+    if ambient_review:
+        ambient_environment(tree, bg)
+    else:
+        reflection_studio(tree, bg, lighting_review)
     cam=bpy.data.cameras.new('Review lens'); cam.clip_start=.001; cam.clip_end=2
     obj=bpy.data.objects.new('ReviewCamera',cam); studio.objects.link(obj); scene.camera=obj
     scene.render.engine='CYCLES'
@@ -396,8 +420,17 @@ def set_studio(lighting_review):
     scene.cycles.adaptive_threshold=.015
     scene.cycles.use_denoising=False
     scene.render.image_settings.file_format='PNG'
-    scene.view_settings.view_transform='AgX'
-    if lighting_review:
+    scene.view_settings.view_transform = 'Standard' if ambient_review else 'AgX'
+    if ambient_review:
+        # Keep low tones clear while preserving separation within the glass.
+        scene.view_settings.use_curve_mapping = True
+        mapping = scene.view_settings.curve_mapping
+        mapping.use_clip = False
+        for x, y in ((.013, .005), (.033, .012), (.066, .033), (.12, .095),
+                     (.21, .20), (.48, .50), (.85, .85)):
+            mapping.curves[3].points.new(x, y)
+        mapping.update()
+    elif lighting_review:
         # Add separation through the aluminum midtones, with anchors near black
         # and the highlights to retain detail in the glass and bright rim.
         scene.view_settings.use_curve_mapping = True
@@ -451,7 +484,10 @@ def frame_workspace():
 
 args = sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
 lighting_review = '--lighting-review' in args
-set_studio(lighting_review)
+ambient_review = '--ambient-review' in args
+if lighting_review and ambient_review:
+    raise SystemExit('Select either --lighting-review or --ambient-review.')
+set_studio(lighting_review, ambient_review)
 view('front_45')
 frame_workspace()
 bpy.context.view_layer.objects.active=body
@@ -489,8 +525,9 @@ if '--preview' in args:
     names=args[args.index('--preview')+1:]
     quality=43
     scene.cycles.samples=32
-elif lighting_review:
-    output=ROOT/'assets/renders/lighting_review'
+elif lighting_review or ambient_review:
+    folder = 'ambient_review' if ambient_review else 'lighting_review'
+    output=ROOT/'assets/renders'/folder
     names=('front','front_45')
 else:
     output=ROOT/'assets/renders'
