@@ -8,4 +8,4 @@ This folder stores machine-readable dimensions and documentation references for 
 
 The images in the reference guide are **linked/embedded from Wikimedia Commons**. No third-party photographs are included as binary files in the repository. Do not add images without confirming the license and providing attribution.
 
-Model source files and exported USDZ assets will be added during Phase 1.
+See the [silver model review](../../docs/MODEL_REVIEW.md) for the editable Blender source, review USDZ, render gallery and geometry estimates.

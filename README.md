@@ -4,7 +4,7 @@ A native macOS app that brings a **fully rotatable, interactive 3D iPod nano (5t
 
 The goal is to display **only the 3D device**, without a visible app window. Use the click wheel to browse and control songs in Apple's Music app, or open the original iPod nano **Video Camera** feature to record VGA video using your Mac's camera.
 
-> **Project status:** Specification and initial repository setup. The macOS app and 3D model have not been implemented yet.
+> **Project status:** The first [editable silver A1320 model and ten review renders](docs/MODEL_REVIEW.md) are available for visual review. The macOS app is at the specification stage.
 
 ## Planned Features
 
