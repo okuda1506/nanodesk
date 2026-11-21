@@ -1,17 +1,20 @@
 """Compose the model or lighting review sheet (Pillow and DejaVu)."""
 import sys
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageStat
 
 renders = Path(__file__).resolve().parents[1] / 'renders'
 font_dir = Path('/usr/share/fonts/truetype/dejavu')
 def font(name, size):
     return ImageFont.truetype(str(font_dir / (name + '.ttf')), size)
 
-args = sys.argv[1:]
-ambient_review = '--ambient-review' in args
-lighting_review = '--lighting-review' in args
-canvas = Image.new('RGB', (1600, 980 if ambient_review or lighting_review else 1350), '#f2f0eb')
+comparisons = {
+    '--lighting-review': ('lighting_review', 'Lighting comparison', None),
+    '--ambient-review': ('ambient_review', 'Ambient lighting comparison', 'lighting_review'),
+    '--tone-review': ('tone_review', 'Studio lighting · Tone comparison', 'lighting_review'),
+}
+comparison = next((spec for flag, spec in comparisons.items() if flag in sys.argv[1:]), None)
+canvas = Image.new('RGB', (1600, 980 if comparison else 1350), '#f2f0eb')
 draw = ImageDraw.Draw(canvas)
 dark = '#24313a'
 muted = '#556168'
@@ -30,15 +33,43 @@ def fit(name, box):
     im.thumbnail((w,h), Image.Resampling.LANCZOS)
     canvas.paste(im, (x+(w-im.width)//2,y+(h-im.height)//2))
 
-if ambient_review or lighting_review:
-    folder = 'ambient_review' if ambient_review else 'lighting_review'
+def grade_shadows(before, after):
+    import numpy as np
+
+    with Image.open(before) as source:
+        pixels = np.array(source.convert('RGB'))
+        icc_profile = source.info.get('icc_profile')
+    luma = pixels @ [0.2126, 0.7152, 0.0722]
+    curve = [(0, 0), (18, 13), (34, 25), (51, 37), (80, 60),
+             (105, 90), (133, 129), (153, 153), (255, 255)]
+    input_levels, output_levels = zip(*curve)
+    target = np.interp(luma, input_levels, output_levels)
+
+    # The source renders have a flat backdrop. Exclude its small dither range
+    # and ease the mask inward to preserve the antialiased silhouette.
+    backdrop = np.median(pixels[:30, :30], axis=(0, 1)).astype('int16')
+    difference = np.max(abs(pixels.astype('int16') - backdrop), axis=2)
+    mask = Image.fromarray((difference > 2).astype('uint8') * 255).copy()
+    ImageDraw.floodfill(mask, (0, 0), 128)
+    mask = mask.point(lambda value: 0 if value == 128 else 255)
+    coverage = np.array(mask.filter(ImageFilter.MinFilter(3)).filter(ImageFilter.GaussianBlur(1))) / 255
+    target = luma + coverage * (target - luma)
+    gain = np.divide(target, luma, out=np.ones_like(luma), where=luma > 0)
+    graded = np.rint(pixels * gain[:, :, None]).clip(0, 255).astype('uint8')
+    Image.fromarray(graded).save(after, icc_profile=icc_profile)
+
+if comparison:
+    folder, title, before_folder = comparison
+    if folder == 'tone_review':
+        (renders / folder).mkdir(exist_ok=True)
+        for name in ('front.png', 'front_45.png'):
+            grade_shadows(renders / before_folder / name, renders / folder / name)
     label(60,38,'NanoDesk   /   Silver A1320',23,muted)
-    title = 'Ambient lighting comparison' if ambient_review else 'Lighting comparison'
     label(60,76,title,50,dark,'DejaVuSerif')
     draw.line((60,157,1540,157), fill='#afb3b1', width=2)
     for group_x, name, title in [(60, 'front', 'Front'), (820, 'front_45', 'Front 45°')]:
         label(group_x,189,title,27)
-        before = f'lighting_review/{name}' if ambient_review else name
+        before = f'{before_folder}/{name}' if before_folder else name
         for offset, caption, source in [(0, 'Before', before), (370, 'After', f'{folder}/{name}')]:
             x = group_x + offset
             label(x,238,caption,20,muted)

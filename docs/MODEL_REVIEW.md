@@ -13,6 +13,21 @@ The first six views use orthographic projection. The two 45° views use a perspe
 | [Front](../assets/renders/front.png) | [Left](../assets/renders/left.png) | [Top](../assets/renders/top.png) | [Front 45°](../assets/renders/front_45.png) | [Lens and microphone](../assets/renders/camera_detail.png) |
 | [Back](../assets/renders/back.png) | [Right](../assets/renders/right.png) | [Bottom](../assets/renders/bottom.png) | [Rear 45°](../assets/renders/back_45.png) | [Dock and jack](../assets/renders/dock_detail.png) |
 
+## Studio lighting tone comparison
+
+![Front and 45-degree comparisons with the original studio reflections and slightly deeper shadows](../assets/renders/tone_review/comparison.jpg)
+
+| View | Before | Adjusted tone |
+|---|---|---|
+| Front | [Studio render](../assets/renders/lighting_review/front.png) | [Tone adjusted](../assets/renders/tone_review/front.png) |
+| Front 45° | [Studio render](../assets/renders/lighting_review/front_45.png) | [Tone adjusted](../assets/renders/tone_review/front_45.png) |
+
+This pass starts from the Before images in the ambient lighting comparison. A luminance curve deepens the screen and wheel tones. The bright silver reflections, camera backdrop, and framing come directly from the studio renders. Generate both PNGs and the comparison sheet from those sources with Pillow and NumPy.
+
+```bash
+python3 assets/scripts/review_sheet.py --tone-review
+```
+
 ## Ambient lighting comparison
 
 ![Front and 45-degree comparisons between the previous lighting and the panel-free ambient lighting](../assets/renders/ambient_review/comparison.jpg)
@@ -22,7 +37,7 @@ The first six views use orthographic projection. The two 45° views use a perspe
 | Front | [Before](../assets/renders/lighting_review/front.png) | [After](../assets/renders/ambient_review/front.png) |
 | Front 45° | [Before](../assets/renders/lighting_review/front_45.png) | [After](../assets/renders/ambient_review/front_45.png) |
 
-The current renders use a smooth ambient gradient for the metal's curved shading. The reflection panels are absent. Standard color management and a low-tone curve give the screen and click wheel deeper blacks against the silver. The camera framing, device geometry and material values match the earlier renders.
+This comparison uses a smooth ambient gradient for the metal's curved shading. The reflection panels are absent. Standard color management and a low-tone curve give the screen and click wheel deeper blacks against the silver. The camera framing, device geometry and material values match the earlier renders.
 
 ```bash
 blender -b -t 4 --python-exit-code 1 -P assets/scripts/generate_model.py -- --ambient-review
