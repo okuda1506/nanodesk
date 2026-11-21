@@ -1,0 +1,274 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		000000000000000000000064 /* DesktopWindowController.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DesktopWindowController.swift";
+			path = "Sources/NanoDesk/DesktopWindowController.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000C8 /* DesktopWindowController.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000064 /* DesktopWindowController.swift */;
+		};
+		000000000000000000000065 /* DeviceCanvas.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DeviceCanvas.swift";
+			path = "Sources/NanoDesk/DeviceCanvas.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000C9 /* DeviceCanvas.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000065 /* DeviceCanvas.swift */;
+		};
+		000000000000000000000066 /* DeviceScene.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DeviceScene.swift";
+			path = "Sources/NanoDesk/DeviceScene.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000CA /* DeviceScene.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000066 /* DeviceScene.swift */;
+		};
+		000000000000000000000067 /* NanoDeskApp.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "NanoDeskApp.swift";
+			path = "Sources/NanoDesk/NanoDeskApp.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000CB /* NanoDeskApp.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000067 /* NanoDeskApp.swift */;
+		};
+		000000000000000000000068 /* ReflectionEnvironment.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "ReflectionEnvironment.swift";
+			path = "Sources/NanoDesk/ReflectionEnvironment.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000CC /* ReflectionEnvironment.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000068 /* ReflectionEnvironment.swift */;
+		};
+		000000000000000000000069 /* DesktopPlacement.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DesktopPlacement.swift";
+			path = "Sources/NanoDeskCore/DesktopPlacement.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000CD /* DesktopPlacement.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000069 /* DesktopPlacement.swift */;
+		};
+		00000000000000000000006A /* DeviceHitTest.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DeviceHitTest.swift";
+			path = "Sources/NanoDeskCore/DeviceHitTest.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000CE /* DeviceHitTest.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 00000000000000000000006A /* DeviceHitTest.swift */;
+		};
+		00000000000000000000006B /* DeviceOrientation.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "DeviceOrientation.swift";
+			path = "Sources/NanoDeskCore/DeviceOrientation.swift";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000CF /* DeviceOrientation.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 00000000000000000000006B /* DeviceOrientation.swift */;
+		};
+		00000000000000000000006C /* NanoModel.usdz */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = file.usdz;
+			name = "NanoModel.usdz";
+			path = "assets/runtime/NanoModel.usdz";
+			sourceTree = "<group>";
+		};
+		0000000000000000000000D0 /* NanoModel.usdz in Resources */ = {
+			isa = PBXBuildFile;
+			fileRef = 00000000000000000000006C /* NanoModel.usdz */;
+		};
+		00000000000000000000006D /* Info.plist */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.xml;
+			name = "Info.plist";
+			path = "Sources/NanoDesk/Info.plist";
+			sourceTree = "<group>";
+		};
+		00000000000000000000006E /* NanoDesk.entitlements */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = text.plist.entitlements;
+			name = "NanoDesk.entitlements";
+			path = "Sources/NanoDesk/NanoDesk.entitlements";
+			sourceTree = "<group>";
+		};
+		000000000000000000000007 /* NanoDesk.app */ = {
+			isa = PBXFileReference;
+			explicitFileType = wrapper.application;
+			includeInIndex = 0;
+			path = NanoDesk.app;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		000000000000000000000002 /* Main Group */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000003 /* App */, 000000000000000000000004 /* Core */, 000000000000000000000005 /* Resources */, 000000000000000000000006 /* Products */,);
+			sourceTree = "<group>";
+		};
+		000000000000000000000003 /* App */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000064 /* DesktopWindowController.swift */, 000000000000000000000065 /* DeviceCanvas.swift */, 000000000000000000000066 /* DeviceScene.swift */, 000000000000000000000067 /* NanoDeskApp.swift */, 000000000000000000000068 /* ReflectionEnvironment.swift */, 00000000000000000000006D /* Info.plist */, 00000000000000000000006E /* NanoDesk.entitlements */,);
+			name = App;
+			sourceTree = "<group>";
+		};
+		000000000000000000000004 /* Core */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000069 /* DesktopPlacement.swift */, 00000000000000000000006A /* DeviceHitTest.swift */, 00000000000000000000006B /* DeviceOrientation.swift */,);
+			name = Core;
+			sourceTree = "<group>";
+		};
+		000000000000000000000005 /* Resources */ = {
+			isa = PBXGroup;
+			children = (00000000000000000000006C /* NanoModel.usdz */,);
+			name = Resources;
+			sourceTree = "<group>";
+		};
+		000000000000000000000006 /* Products */ = {
+			isa = PBXGroup;
+			children = (000000000000000000000007 /* NanoDesk.app */,);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		000000000000000000000009 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (0000000000000000000000C8 /* DesktopWindowController.swift in Sources */, 0000000000000000000000C9 /* DeviceCanvas.swift in Sources */, 0000000000000000000000CA /* DeviceScene.swift in Sources */, 0000000000000000000000CB /* NanoDeskApp.swift in Sources */, 0000000000000000000000CC /* ReflectionEnvironment.swift in Sources */, 0000000000000000000000CD /* DesktopPlacement.swift in Sources */, 0000000000000000000000CE /* DeviceHitTest.swift in Sources */, 0000000000000000000000CF /* DeviceOrientation.swift in Sources */,);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000000A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = ();
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		00000000000000000000000B /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (0000000000000000000000D0 /* NanoModel.usdz in Resources */,);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		000000000000000000000008 /* NanoDesk */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 00000000000000000000000E /* Target configurations */;
+			buildPhases = (000000000000000000000009 /* Sources */, 00000000000000000000000A /* Frameworks */, 00000000000000000000000B /* Resources */,);
+			buildRules = ();
+			dependencies = ();
+			name = NanoDesk;
+			productName = NanoDesk;
+			productReference = 000000000000000000000007 /* NanoDesk.app */;
+			productType = "com.apple.product-type.application";
+		};
+		000000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = { LastUpgradeCheck = 1630; };
+			buildConfigurationList = 00000000000000000000000D /* Project configurations */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base,);
+			mainGroup = 000000000000000000000002 /* Main Group */;
+			productRefGroup = 000000000000000000000006 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (000000000000000000000008 /* NanoDesk */,);
+		};
+		000000000000000000000082 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				SDKROOT = macosx;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				SWIFT_VERSION = 6.0;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ONLY_ACTIVE_ARCH = YES;
+				ENABLE_TESTABILITY = YES;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+			};
+			name = Debug;
+		};
+		000000000000000000000083 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				SDKROOT = macosx;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				SWIFT_VERSION = 6.0;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+			};
+			name = Release;
+		};
+		00000000000000000000000D /* Project configurations */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (000000000000000000000082 /* Debug */, 000000000000000000000083 /* Release */,);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		00000000000000000000008C /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Sources/NanoDesk/NanoDesk.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Sources/NanoDesk/Info.plist";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.okuda1506.nanodesk;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+			};
+			name = Debug;
+		};
+		00000000000000000000008D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = "Sources/NanoDesk/NanoDesk.entitlements";
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Manual;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = "Sources/NanoDesk/Info.plist";
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = io.github.okuda1506.nanodesk;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTED_PLATFORMS = macosx;
+			};
+			name = Release;
+		};
+		00000000000000000000000E /* Target configurations */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (00000000000000000000008C /* Debug */, 00000000000000000000008D /* Release */,);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+	};
+	rootObject = 000000000000000000000001 /* Project object */;
+}

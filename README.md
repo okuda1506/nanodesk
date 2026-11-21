@@ -2,9 +2,31 @@
 
 A native macOS app that brings a **fully rotatable, interactive 3D iPod nano (5th generation)** to your desktop.
 
-The goal is to display **only the 3D device**, without a visible app window. Use the click wheel to browse and control songs in Apple's Music app, or open the original iPod nano **Video Camera** feature to record VGA video using your Mac's camera.
+The desktop preview displays the approved 3D device in a transparent panel. The planned player will control songs in Apple's Music app with the click wheel and support VGA capture in the **Video Camera** feature.
 
-> **Project status:** The first [editable silver A1320 model and ten review renders](docs/MODEL_REVIEW.md) are available for visual review. The macOS app is at the specification stage.
+> **Project status** · A native desktop preview is available for Mac validation. The [approved silver A1320 model](docs/MODEL_REVIEW.md) supplies its USDZ. See [implementation findings](docs/RISKS_AND_FINDINGS.md) for the checks performed so far.
+
+## Run the desktop preview
+
+On an Apple Silicon Mac running macOS 15 or later, install Xcode 16 or later. Open `NanoDesk.xcodeproj`, select the **NanoDesk** scheme and **My Mac**, and press **Command-R**. The target uses **Sign to Run Locally**. Use the **NanoDesk** menu-bar item to show or hide the device, reset it, toggle window behavior, or quit.
+
+| Action | Control |
+|---|---|
+| Rotate in both axes | Drag the housing. Shift-drag anywhere on the device, including the wheel. |
+| Return to the front | Double-click the device or select **Reset Orientation**. |
+| Move | Option-drag the device. |
+| Resize | Command-scroll, pinch, or use **Increase Size** and **Decrease Size**. |
+| Pass clicks to other apps | Enable **Click Through** from the menu bar. Disable it there to interact again. |
+
+For a command-line build on the Mac from the checkout root:
+
+```bash
+xcodebuild -project NanoDesk.xcodeproj -scheme NanoDesk -configuration Debug \
+  -destination 'platform=macOS,arch=arm64' -derivedDataPath .build/xcode build
+open .build/xcode/Build/Products/Debug/NanoDesk.app
+```
+
+`swift test` runs the shared rotation, hit-test, and placement tests on macOS or Linux. Use the [Mac QA checklist](docs/QA_CHECKLIST.md) to check window transparency and compare RealityKit with the approved renders.
 
 ## Planned Features
 
@@ -35,25 +57,18 @@ Four locally stored photo references are now available in **[assets/references/p
 
 | Area | Technology |
 |---|---|
-| macOS application | Swift, SwiftUI, AppKit |
-| 3D rendering | RealityKit / RealityView |
+| macOS application | Swift 6, AppKit |
+| 3D rendering | RealityKit `RealityRenderer` and a transparent Metal layer |
 | 3D source assets | Blender → USDZ |
 | Music integration | Apple Events / AppleScript → Music.app |
 | Camera and recording | AVFoundation |
-| Tests | Swift Testing or XCTest |
+| Tests | Swift Testing for portable logic, plus Mac desktop QA |
 
 **Target device:** Apple Silicon Mac, primarily MacBook Air M3. The specification initially targets macOS 15+, subject to API and Xcode verification.
 
 ## Development Workflow
 
-1. Connect this GitHub repository to **Codex Cloud**.
-2. Ask Codex to read `docs/SPEC.md` and begin with **Phase 0 technical feasibility spikes only**.
-3. Have Codex implement testable source code and mocks in Cloud, then commit its changes through GitHub.
-4. Clone the repository onto a Mac with Xcode.
-5. Build the native project and validate transparent rendering, Music.app integration, permissions, and video capture on the Mac.
-6. Return build errors and logs to Codex, iterate, and complete the remaining phases in the order defined by the specification.
-
-A normal Codex Cloud environment does **not** provide the Mac GUI, Xcode, Music.app, or your physical camera. **Cloud implementation alone is not evidence of a working macOS app.**
+Use the Cloud Swift toolchain for portable tests and the Mac Xcode toolchain for the app and its desktop appearance. The [architecture notes](docs/ARCHITECTURE.md) explain how the two targets share code and which render is the visual baseline. Follow [the specification](docs/SPEC.md) for the later playback and capture phases.
 
 ### Clone the repository
 
@@ -62,13 +77,11 @@ git clone https://github.com/okuda1506/nanodesk.git
 cd nanodesk
 ~~~
 
-Once Codex creates the Xcode project, open the generated `.xcodeproj` or `.xcworkspace` in Xcode, select **My Mac**, and run it with **Command-R**. The build command and minimum supported Xcode version will be documented after Phase 0.
-
-### Music setup
+### Music setup (planned)
 
 For MVP playback, add downloaded, purchased iTunes Store songs to a playlist in **Music.app**, then select that playlist through NanoDesk after granting macOS Automation permission. NanoDesk does not require an Apple Music subscription or access to your Apple Account credentials.
 
-### Video setup
+### Video setup (planned)
 
 Video Camera uses the **Mac's physical front-facing camera and microphone**, not the position or direction of the 3D rear camera model. macOS camera/microphone permission is required. The planned default save location is:
 
