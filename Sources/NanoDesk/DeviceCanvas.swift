@@ -35,6 +35,11 @@ final class DeviceCanvas: NSView {
         outputLayer.backgroundColor = CGColor(gray: 0, alpha: 0)
         layer = outputLayer
         wantsLayer = true
+
+        let pinch = NSMagnificationGestureRecognizer(target: self, action: #selector(handlePinch(_:)))
+        pinch.delaysPrimaryMouseButtonEvents = false
+        pinch.delaysMagnificationEvents = false
+        addGestureRecognizer(pinch)
     }
 
     @available(*, unavailable)
@@ -119,7 +124,13 @@ final class DeviceCanvas: NSView {
         input?.zoom(by: exp(Double(event.scrollingDeltaY) * rate))
     }
 
-    override func magnify(with event: NSEvent) {
-        input?.zoom(by: exp(Double(event.magnification)))
+    @objc private func handlePinch(_ gesture: NSMagnificationGestureRecognizer) {
+        guard gesture.state == .began || gesture.state == .changed || gesture.state == .ended else { return }
+        let factor = 1 + Double(gesture.magnification)
+        // The recognizer accumulates magnification. Rebase it after each step
+        // so zoom(by:) receives an incremental factor instead of a total.
+        gesture.magnification = 0
+        guard factor != 1 else { return }
+        input?.zoom(by: factor)
     }
 }

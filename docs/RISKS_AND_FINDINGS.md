@@ -9,3 +9,9 @@
 A transparent view and a clear render background configure separate parts of compositing. If a dark rectangle or an outline appears, inspect alpha in the RealityKit drawable, then the color space and premultiplication at the Metal layer. A fix belongs in presentation while the approved asset is preserved. In interactive mode, AppKit reserves a rectangular window. Whole-window Click Through is the current documented solution. Test finer input delivery only if a public macOS API can support it.
 
 RealityKit may import preview materials or grade highlights differently from Blender. Compare matched screenshots and adjust the procedural environment and intensity in the app. The front texture's import orientation and per-sector precision can be verified during the screen and click-wheel phase. Music.app integration, Automation, camera/microphone permissions and recording are deferred. The Cloud implementation does not close the full Phase 0 exit gate in the product specification.
+
+## Trackpad pinch
+
+**LOCAL_MAC_VERIFIED (user report)** · Command plus two-finger scrolling resized the device. Pinch in and out did not. The two inputs share `zoom(by:)`, so resize math alone does not explain the difference. The report does not establish whether the original responder callback `DeviceCanvas.magnify(with:)` was reached.
+
+**CLOUD_IMPLEMENTED** · The canvas attaches an `NSMagnificationGestureRecognizer` and passes incremental scale factors to `zoom(by:)`. It leaves primary mouse events undelayed. The panel retains `.nonactivatingPanel` and `becomesKeyOnlyIfNeeded`, which govern activation and key focus. `acceptsFirstMouse(for:)` applies to mouse presses. It does not establish that a pinch reaches the canvas. The recognizer handles gestures delivered to its view. Event delivery to an inactive panel still needs to be checked on a Mac.
