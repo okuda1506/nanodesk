@@ -1,4 +1,5 @@
-"""Compose the review sheet from the ten product renders (Pillow and DejaVu)."""
+"""Compose the model or lighting review sheet (Pillow and DejaVu)."""
+import sys
 from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont, ImageStat
 
@@ -7,7 +8,8 @@ font_dir = Path('/usr/share/fonts/truetype/dejavu')
 def font(name, size):
     return ImageFont.truetype(str(font_dir / (name + '.ttf')), size)
 
-canvas = Image.new('RGB', (1600, 1350), '#f2f0eb')
+lighting_review = '--lighting-review' in sys.argv[1:]
+canvas = Image.new('RGB', (1600, 980 if lighting_review else 1350), '#f2f0eb')
 draw = ImageDraw.Draw(canvas)
 dark = '#24313a'
 muted = '#556168'
@@ -25,6 +27,19 @@ def fit(name, box):
     x,y,w,h=box
     im.thumbnail((w,h), Image.Resampling.LANCZOS)
     canvas.paste(im, (x+(w-im.width)//2,y+(h-im.height)//2))
+
+if lighting_review:
+    label(60,38,'NanoDesk   /   Silver A1320',23,muted)
+    label(60,76,'Lighting comparison',50,dark,'DejaVuSerif')
+    draw.line((60,157,1540,157), fill='#afb3b1', width=2)
+    for group_x, name, title in [(60, 'front', 'Front'), (820, 'front_45', 'Front 45°')]:
+        label(group_x,189,title,27)
+        for offset, caption, source in [(0, 'Before', name), (370, 'After', f'lighting_review/{name}')]:
+            x = group_x + offset
+            label(x,238,caption,20,muted)
+            fit(source,(x,269,350,660))
+    canvas.save(renders/'lighting_review/comparison.jpg',quality=95,subsampling=0,optimize=True)
+    sys.exit(0)
 
 label(60,43,'NanoDesk   /   Model review 01',23,muted)
 label(60,90,'iPod nano',70,dark,'DejaVuSerif')

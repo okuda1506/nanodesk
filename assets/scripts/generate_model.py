@@ -334,14 +334,17 @@ def aim(obj, position, target):
     obj.location = Vector(position)*MM
     obj.rotation_euler = (Vector(target)*MM-obj.location).to_track_quat('-Z','Y').to_euler()
 
-def reflection_studio(tree, background):
+def reflection_studio(tree, background, lighting_review):
     # An original procedural equirectangular studio. Long luminous panels and
     # dark flags give the shallow hull readable gradients through rotation.
     import numpy as np
     width, height = 768, 384
     latitude = (np.arange(height)[:, None] + .5) * 180/height - 90
     longitude = (np.arange(width)[None, :] + .5) * 360/width - 180
-    rgb = np.zeros((height, width, 3), dtype=np.float32) + (.075,.088,.105)
+    fill = np.array((.075, .088, .105))
+    if lighting_review:
+        fill *= .97
+    rgb = np.zeros((height, width, 3), dtype=np.float32) + fill
     panels = [
         (-72, 23, 20, 46, (1.28,1.28,1.26)),
         (-135, 4, 9, 61, (2.9,3.0,3.15)),
@@ -355,8 +358,13 @@ def reflection_studio(tree, background):
     for az, el, sx, sy, color in panels:
         tilt = .26 if az in (-72, 47, 124) else -.09
         delta = (longitude - az - tilt*latitude + 180) % 360 - 180
+        gain = 1.0
+        if lighting_review and sy >= 40:
+            # Reduce the peak of tall panels, especially the narrow edge strips.
+            gain = .78 if sx < 14 else .91
+            sx *= 1.03
         lobe = np.exp(-.5*((delta/sx)**4 + ((latitude-el)/sy)**4))
-        rgb += lobe[:, :, None] * color
+        rgb += lobe[:, :, None] * np.array(color) * gain
     rgba = np.ones((height, width, 4),dtype=np.float32)
     rgba[:,:,:3] = rgb
     img = bpy.data.images.new('Procedural studio | original',width,height,float_buffer=True)
@@ -367,7 +375,7 @@ def reflection_studio(tree, background):
     tree.links.new(env.outputs[0],background.inputs[0])
     background.inputs[1].default_value=.83
 
-def set_studio():
+def set_studio(lighting_review):
     world=scene.world
     world.use_nodes=True
     tree=world.node_tree
@@ -380,7 +388,7 @@ def set_studio():
     tree.links.new(ray.outputs['Is Camera Ray'],mix.inputs[0])
     tree.links.new(bg.outputs[0],mix.inputs[1]); tree.links.new(back.outputs[0],mix.inputs[2])
     tree.links.new(mix.outputs[0],tree.nodes.get('World Output').inputs['Surface'])
-    reflection_studio(tree,bg)
+    reflection_studio(tree,bg,lighting_review)
     cam=bpy.data.cameras.new('Review lens'); cam.clip_start=.001; cam.clip_end=2
     obj=bpy.data.objects.new('ReviewCamera',cam); studio.objects.link(obj); scene.camera=obj
     scene.render.engine='CYCLES'
@@ -389,6 +397,16 @@ def set_studio():
     scene.cycles.use_denoising=False
     scene.render.image_settings.file_format='PNG'
     scene.view_settings.view_transform='AgX'
+    if lighting_review:
+        # Add separation through the aluminum midtones, with anchors near black
+        # and the highlights to retain detail in the glass and bright rim.
+        scene.view_settings.use_curve_mapping = True
+        mapping = scene.view_settings.curve_mapping
+        mapping.use_clip = False
+        for x, y in ((.035, .035), (.075, .075), (.125, .105), (.22, .192),
+                     (.37, .348), (.55, .562), (.84, .84)):
+            mapping.curves[3].points.new(x, y)
+        mapping.update()
     scene.render.film_transparent=False
     scene.render.resolution_percentage=100
     scene.render.threads_mode='FIXED'; scene.render.threads=4
@@ -431,16 +449,14 @@ def frame_workspace():
     for o in studio.objects:
         o.hide_set(True)
 
-set_studio()
+args = sys.argv[sys.argv.index('--')+1:] if '--' in sys.argv else []
+lighting_review = '--lighting-review' in args
+set_studio(lighting_review)
 view('front_45')
 frame_workspace()
 bpy.context.view_layer.objects.active=body
 bpy.ops.object.select_all(action='DESELECT')
 body.select_set(True)
-if '--' in sys.argv:
-    args=sys.argv[sys.argv.index('--')+1:]
-else:
-    args=[]
 def write_mesh_exchange(path):
     # Ship only device geometry. Coordinates and smooth corner normals are
     # already evaluated here; USD conversion needs no Blender or GPU plugins.
@@ -467,15 +483,18 @@ def write_mesh_exchange(path):
     Path(path).write_text(json.dumps({'objects':packed,'materials':materials}))
 if '--exchange' in args:
     write_mesh_exchange(args[args.index('--exchange')+1])
+quality=100
 if '--preview' in args:
     output=Path('/tmp/nanodesk-preview')
     names=args[args.index('--preview')+1:]
     quality=43
     scene.cycles.samples=32
+elif lighting_review:
+    output=ROOT/'assets/renders/lighting_review'
+    names=('front','front_45')
 else:
     output=ROOT/'assets/renders'
     names=VIEWS
-    quality=100
     (ROOT/'assets/source').mkdir(parents=True,exist_ok=True)
     bpy.context.preferences.filepaths.save_version=0
     bpy.ops.wm.save_as_mainfile(filepath=str(ROOT/'assets/source/ipod_nano_5g.blend'),compress=True)

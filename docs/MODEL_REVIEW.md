@@ -13,6 +13,26 @@ The first six views use orthographic projection. The two 45° views use a perspe
 | [Front](../assets/renders/front.png) | [Left](../assets/renders/left.png) | [Top](../assets/renders/top.png) | [Front 45°](../assets/renders/front_45.png) | [Lens and microphone](../assets/renders/camera_detail.png) |
 | [Back](../assets/renders/back.png) | [Right](../assets/renders/right.png) | [Bottom](../assets/renders/bottom.png) | [Rear 45°](../assets/renders/back_45.png) | [Dock and jack](../assets/renders/dock_detail.png) |
 
+## Lighting comparison
+
+![The same silver A1320 from the front and front 45 degrees, before and after adjusting the studio lighting](../assets/renders/lighting_review/comparison.jpg)
+
+| View | Original | Adjusted |
+|---|---|---|
+| Front | [Before](../assets/renders/front.png) | [After](../assets/renders/lighting_review/front.png) |
+| Front 45° | [Before](../assets/renders/front_45.png) | [After](../assets/renders/lighting_review/front_45.png) |
+
+The adjusted render softens the vertical reflection panels and uses a gentle RGB curve under AgX to separate aluminum midtones. The same camera framing, mesh, and materials make the changes directly visible. From the front, the vertical streaks draw less attention and the metal below the wheel shows a slightly stronger gradient. At 45°, the shadow next to the rim gives the curve more depth, and the reflected edge and glass boundary are still visible. The aluminum reads closer to the requested natural silver finish in this comparison. The available device photos show a purple unit, so this is a visual judgment rather than a match against a measured silver sample.
+
+As a check, the front image's 95th percentile luma in the left and right rim strips dropped from 190 to 187 and 202 to 200 on an 8-bit scale. The 5th-to-95th percentile luma spread in the aluminum band below the wheel grew from 95 to 98. The central glass sample retained detail and had zero pixels at black in both images.
+
+Generate the two adjusted renders and the comparison sheet with the commands below. The adjusted outputs are saved in `assets/renders/lighting_review/`.
+
+```bash
+blender -b -t 4 --python-exit-code 1 -P assets/scripts/generate_model.py -- --lighting-review
+python3 assets/scripts/review_sheet.py --lighting-review
+```
+
 ## Shape evidence
 
 **VERIFIED_REFERENCE** — All four original PNGs in the [local photo set](../assets/references/photos/README.md) were opened. The composite establishes front/rear orientation. The individual front view shows a narrow metal band above the rounded black bezel, a larger gap below the bezel, a concentric wheel and a center key in the body finish. The rear view shows a continuous longitudinal highlight around the side and a narrow vertical capsule low on the viewer's left. The close-up resolves a small dark mic opening above a much larger dark lens, a bright surround and a fine perimeter joint. The rear photograph carries the A1320 model marking.
