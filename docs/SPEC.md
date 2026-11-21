@@ -1,257 +1,270 @@
-# iPod nano 3D Desktop Player — 要件定義・基本設計仕様書
+# NanoDesk — Product Requirements and Technical Design Specification
 
-| 項目 | 内容 |
+| Field | Value |
 |---|---|
-| 文書版 | **v1.1（2026-11-20／Video Camera追加）** |
-| プロジェクト仮称 | NanoDesk |
-| 用途 | Codexへの開発指示／実装・検証の基準 |
-| 対象環境 | Apple Silicon Mac（M3 MacBook Airを主な検証機とする） |
-| 対象OS | macOS 15以降を初期ターゲットとする（着手時にAPIの利用可否を実機・SDKで検証） |
-| 対象iPod | **iPod nano 第5世代（A1320／2009年）** を暫定採用。世代変更があっても再利用可能な設計とする |
-| 開発形態 | 個人利用のネイティブmacOSアプリ。初期段階ではMac App Store公開を前提としない |
-| 実装言語 | Swift（Swift 6系を想定。実際のXcodeに合わせる） |
+| Document version | **v1.1 (2026-11-20; Video Camera included)** |
+| Project name | NanoDesk |
+| Purpose | Source of truth for Codex implementation, engineering decisions, and acceptance testing |
+| Primary hardware | Apple Silicon Mac; MacBook Air M3 as the principal physical test device |
+| Target OS | macOS 15 or later, subject to validation against the actual installed Xcode/SDK |
+| Reference device | **iPod nano, fifth generation (A1320, 2009)**; design components for possible future model swaps |
+| Distribution | Personal-use native macOS app; Mac App Store distribution is out of scope initially |
+| Language | Swift, preferably Swift 6 as supported by the installed Xcode |
 
-> **最重要要件：** これは通常の「アプリ画面の中に3D iPodを表示する音楽プレーヤー」ではない。macOSのデスクトップ上で**iPod nanoの立体物だけが浮かんでいるように見える**常駐アプリである。技術的な実体は「枠・タイトルバーがなく背景が透明なmacOSウィンドウ」に3Dモデルを描画したもの。専用の大型メインウィンドウ、ブラウザ画面、WebView、iPodの背景パネルは表示しない。
+> **Non-negotiable product requirement:** This is **not** an ordinary player window containing a 3D iPod. On the macOS desktop, the **3D iPod nano itself must appear to float independently**, without a visible surrounding application window. Technically, the 3D scene is hosted in a transparent, borderless macOS window. Do **not** add a large main window, browser UI, WebView, background panel, or card behind the device.
 
 ---
 
-## 1. 目的・完成イメージ
+## 1. Product Vision
 
-Macのデスクトップ上に、実物に近い質感・厚みを持つiPod nanoが単体で表示される。ユーザーはマウス／トラックパッドで上下左右に自由に回転させ、側面・背面も鑑賞できる。正面を向けると、実機に近いスクリーンとクリックホイールを使って、Macの「ミュージック」アプリ（Music.app）内にある**iTunes Storeで購入した楽曲**を探し、選択して再生・一時停止・曲送り・曲戻し・音量変更できる。
+Show a realistically proportioned, three-dimensional iPod nano on the Mac desktop. The user can freely rotate the device horizontally and vertically with a mouse or trackpad, inspect its sides and back, and return to the front to operate a functional screen and click wheel. Music is selected from tracks **purchased through the iTunes Store and available in the user's Music.app library**. The iPod interface can browse songs and playlists, start and pause playback, skip tracks, and change volume.
 
-**成功体験**：普段Macで作業している間も、小さなiPod nanoが壁紙や作業ウィンドウ上に存在し、実物を手に取るように回転させながら音楽を操作できる。さらに、実機に搭載されていた「Video Camera」を選択するとMacの内蔵カメラでVGA動画を録画できる。
+**Desired experience:** While working in other Mac applications, a small 3D iPod remains on the desktop like a physical object. The user can turn it over and use its click wheel. Selecting the original fifth-generation **Video Camera** menu item opens a live view from the Mac camera, allowing VGA video recording.
 
-### 1.1 重要な解釈
+### 1.1 Interpretations that must not change
 
-- **デスクトップ単体表示**：文字どおりウィンドウが一切存在しないわけではない。透明・枠なしのウィンドウを使い、外見上iPodだけを表示する。
-- **自由回転**：iPod本体の3DモデルをX/Y軸方向に回転できること。背面と厚みも見える。視線固定の平面画像を傾けるだけでは不可。
-- **本物に近い操作**：リング状のクリックホイールを円周に沿ってなぞると項目移動や音量変更ができ、上下左右のクリック位置とセンターボタンが機能すること。
-- **音楽再生**：初期版ではMusic.appを再生エンジンとし、本アプリは「見た目・操作・表示」のフロントエンドになる。Appleの購入履歴APIを直接取得したり、DRMを解除したりしない。
-- **動画撮影**：iPod nano第5世代に標準搭載された**Video Camera**のみ再現し、Macのフロントカメラとマイクで動画・音声を録画する。**静止画撮影は対象外**。3Dモデル背面のカメラは外観表現であり、物理的に映像を取得するのはMac側の実カメラである。
+- **Standalone desktop appearance:** A real window may be used internally, but it must be borderless, transparent, and visually indistinguishable from a standalone model.
+- **True 3D rotation:** Rotate a volumetric model along both horizontal and vertical axes, showing its back and thickness. Tilting a flat 2D image does not meet this requirement.
+- **Physical-style input:** Dragging around the click-wheel ring moves a selection or volume; all four directional buttons and the center button must work.
+- **Music ownership and playback:** Music.app is the actual audio player; NanoDesk supplies the UI and commands. Do not fetch an Apple purchase-history API, bypass DRM, or implement independent decoding of protected files.
+- **Video Camera:** Re-create the video-recording feature supplied with the fifth-generation iPod nano, using the Mac's front-facing camera and microphone. **Do not implement still-photo capture.** The camera sculpted on the model's back is visual; the actual source is the Mac camera.
 
-## 2. スコープと優先度
+## 2. Scope and Priorities
 
-優先度の意味：**P0 = MVP必須**、**P1 = MVP完成後の改善候補**、**P2 = 将来拡張**。
+**P0 = required for the MVP; P1 = improvement after MVP; P2 = future possibility.**
 
-| ID | 機能 | 優先度 |
+| ID | Feature | Priority |
 |---|---|---|
-| F-01 | 背景透明・枠なし・単体のiPod表示 | P0 |
-| F-02 | 3Dモデル（正面／背面／側面・厚み・材質） | P0 |
-| F-03 | マウス／トラックパッドで360度回転、初期角度へ復帰 | P0 |
-| F-04 | クリックホイールの円周ドラッグによるスクロール | P0 |
-| F-05 | MENU／中央決定／前へ／次へ／再生・一時停止の操作 | P0 |
-| F-06 | ホーム／Music／Playlists／Songs／Now Playing等の画面遷移 | P0 |
-| F-07 | Music.appとの接続・権限取得・プレイリスト選択 | P0 |
-| F-08 | iTunes購入済み楽曲を含むユーザー指定プレイリストの再生 | P0 |
-| F-09 | 曲名・アーティスト・再生状態・再生経過／残り時間・音量表示 | P0 |
-| F-10 | メニューバーから表示／非表示、位置・大きさ変更、終了 | P0 |
-| F-11 | 設定・位置・倍率・最後の画面を保存 | P0 |
-| F-12 | Automation許可拒否／曲なし／Music.app不在などの復旧導線 | P0 |
-| F-13 | 再生中の曲のアートワーク表示 | P1 |
-| F-14 | 本体カラー切替（シルバー／ブラック等） | P1 |
-| F-15 | Holdスイッチで操作ロック、キーボードショートカット | P1 |
-| F-16 | 透過領域の完全なクリック透過 | **P1・実現性検証次第** |
-| F-17 | iTunes購入済み曲の自動識別・抽出 | **P1・メタデータ精度検証次第** |
-| F-18 | 画面の光沢／反射、ホイールのフィードバック音、慣性アニメーション | P1 |
-| F-19 | シャッフル／リピート、曲中シーク（長押し） | P1 |
-| F-20 | Apple Musicサブスク楽曲全体の検索・再生 | P2（別途検討） |
-| F-21 | 起動時自動開始、複数iPod同時表示、スキン差し替え | P2 |
-| F-22 | Main Menuの「Video Camera」起動、iPod画面内のライブプレビュー | **P0** |
-| F-23 | Mac内蔵カメラ＋マイクで640×480・30fps目標の動画／音声録画 | **P0** |
-| F-24 | 中央ボタンで録画開始／停止、赤いREC表示、録画時間表示 | **P0** |
-| F-25 | 録画動画をMacローカルに保存、Camera Rollから一覧・再生 | **P0** |
-| F-26 | カメラ／マイクの権限、機器未接続、保存失敗の復旧対応 | **P0** |
-| F-27 | iPod nano風の撮影エフェクト（フィルムグレイン等） | P1 |
-| F-28 | 縦向き撮影モード、動画の削除／保存先変更、撮影設定の高度化 | P1 |
+| F-01 | Standalone 3D iPod appearance in a transparent, borderless window | P0 |
+| F-02 | Accurate 3D front, rear, sides, thickness, and materials | P0 |
+| F-03 | Mouse/trackpad 360-degree rotation and reset to front | P0 |
+| F-04 | Circular drag scrolling on the click wheel | P0 |
+| F-05 | Working MENU, Select, Previous, Next, and Play/Pause buttons | P0 |
+| F-06 | Home, Music, Playlists, Songs, and Now Playing navigation | P0 |
+| F-07 | Music.app permission/connection and playlist selection | P0 |
+| F-08 | Playback of a user-selected playlist containing purchased music | P0 |
+| F-09 | Title, artist, playback state, position, duration, and volume | P0 |
+| F-10 | Menu-bar show/hide, placement, resizing, and quit | P0 |
+| F-11 | Persist settings, position, scale, and last screen | P0 |
+| F-12 | Recovery UX for denied Automation permission, empty library, absent Music.app, etc. | P0 |
+| F-13 | Display album artwork | P1 |
+| F-14 | Select housing color, e.g. silver or black | P1 |
+| F-15 | Hold switch/input lock and keyboard shortcuts | P1 |
+| F-16 | Per-pixel click-through outside the device silhouette | P1, subject to feasibility |
+| F-17 | Automatically identify purchased tracks | P1, subject to metadata reliability |
+| F-18 | Screen reflections, wheel feedback sounds, inertial animations | P1 |
+| F-19 | Shuffle/repeat controls and long-press seeking | P1 |
+| F-20 | Search/play the full Apple Music subscription catalog | P2 |
+| F-21 | Login launch, multiple devices, interchangeable skins | P2 |
+| F-22 | Main Menu > Video Camera with a live preview inside the model's screen | P0 |
+| F-23 | Record video and audio using Mac camera/microphone at target 640x480, 30 fps | P0 |
+| F-24 | Center-button start/stop, red REC indicator, elapsed timer | P0 |
+| F-25 | Save locally and browse/play recordings in Camera Roll | P0 |
+| F-26 | Permission, missing-device, and recording/storage error handling | P0 |
+| F-27 | Vintage video effects such as film grain | P1 |
+| F-28 | Portrait shooting, deletion, alternative destinations, advanced recording preferences | P1 |
 
-**初期版で実装しないこと：** iOS版／Windows版、iPod実機とのUSB同期、iTunes Store購入画面の再実装、Apple AccountのID・パスワード収集、配信音楽のダウンロード、DRM回避、**静止画撮影**・FMラジオ・ゲームなど第5世代のその他全機能再現、実機ファームウェアの複製。**動画撮影はP0に含める**。
+**Explicitly excluded from MVP:** iOS/Windows clients; USB sync with a real iPod; an iTunes Store buying UI; Apple Account credentials; downloading streamed tracks; DRM circumvention; **still photography**; FM radio, games, and exhaustive firmware replication. **Video recording is included in P0.**
 
-## 3. 利用前提・制約
+## 3. Prerequisites and Constraints
 
-1. 開発・使用するMacにMusic.appがインストールされていること。
-2. iTunes Store購入楽曲がMusic.appライブラリに登録済みで、当該Macで再生可能な状態であること。クラウド上にのみある曲は、**まずMusic.appでダウンロード／認証**してもらうフローを基本とする。
-3. 初回は本アプリからMusic.appを操作するためのmacOS「オートメーション」権限を求める。拒否された場合、3Dの閲覧だけは可能で、音楽機能にエラー理由と再設定案内を表示する。
-4. Apple Musicの月額サブスク加入は必須としない。対象は購入済みの曲。サブスク曲を解読して独自再生することはしない。
-5. 「購入済みか否か」をMusic.appの全曲から確実に自動判定できるとは仕様上断定しない。**初期版の確実な選曲方法は、ユーザーがMusic.appで用意した購入曲用プレイリストを指定すること**。自動判定は実データ検証後のP1。
-6. Macの音源出力先・システム音量・Music.appの再生キューの仕様に従う。別途オーディオデータをコピー・蓄積しない。
-7. 動画撮影にはmacOSの**カメラ権限／マイク権限**と利用可能なMac内蔵カメラが必要。録画データはユーザーが利用するMac内にのみ保存する。外部サーバーへアップロードしない。
-8. **初期ターゲットの撮影品質は640×480（4:3）／30fps／H.264映像＋AAC音声**。カメラ入力の実解像度と出力を区別し、実機に近いVGA品質へ変換する。30fps非対応機では撮影前に明示し、実際の出力フレームレートを検証する。
+1. Music.app must be available on the development and end-user Mac.
+2. Purchased iTunes Store songs must be in the Music.app library and playable on that Mac. For cloud-only songs, guide the user to download or authorize playback through Music.app first.
+3. Request the macOS **Automation** permission before controlling Music.app. If denied, the 3D device remains viewable and the music UI offers actionable permission instructions.
+4. An Apple Music subscription is not required. Do not independently decrypt subscription music.
+5. Reliably distinguishing all purchased tracks from all other tracks is **not assumed possible**. For P0, the user selects a playlist they created in Music.app specifically for their purchases; automatic detection is P1.
+6. Respect Music.app output routing and queue behavior. Do not duplicate or cache audio files.
+7. Video requires camera and, for audio, microphone permission plus an available Mac camera. Recordings remain on the user's Mac; nothing is uploaded.
+8. The target recorded output is **640x480 (4:3), 30 fps, H.264 video with AAC audio**. Camera input properties are distinct from exported output properties. If 30 fps is unavailable, clearly report that and verify actual output metadata.
 
-## 4. ユーザーシナリオ
+## 4. User Journeys
 
-### U-01 初回起動
-1. アプリを起動する。
-2. デスクトップ上にiPod nanoの3Dモデルが現れる（背景・枠なし、初期角度は正面）。
-3. iPodの画面には「Music.appに接続する」と案内が表示される。
-4. 接続操作でmacOS標準のAutomation権限ダイアログを表示する（初回のみ。OS側の仕様に従う）。
-5. 権限が得られると、Music.app内のプレイリスト一覧を表示する。
-6. 購入曲が入っているプレイリストを選択し、設定を保存する。
-7. iPod画面にメニューが表示され、音楽操作可能になる。
+### U-01: First launch
 
-### U-02 曲の再生
-1. 本体正面のホイールの円周に沿って時計回り／反時計回りにドラッグする。
-2. Music → Playlists → 選択したプレイリスト → Songs の順に項目を選ぶ。
-3. 中央ボタンで曲を決定するとMusic.appで再生が始まる。
-4. 「Now Playing」に曲名・アーティスト・経過時間／総時間が表示される。
-5. ホイール下の再生／一時停止を押すと状態が切り替わり、次へ／前へが機能する。
-6. Now Playing画面でホイールをなぞると音量が変化する。
+1. Launch NanoDesk.
+2. A front-facing 3D nano appears directly on the desktop, without visible window chrome.
+3. Its screen asks to connect to Music.app.
+4. Initiate connection and request macOS Automation permission where appropriate.
+5. On success, show playlists available through Music.app.
+6. The user selects a playlist of purchased music; save the choice.
+7. Display the iPod main menu and enable music controls.
 
-### U-03 回転して鑑賞
-1. 本体の**ホイール以外の筐体部分**をドラッグすると、上下左右に回転する。
-2. 背面のカメラ、側面の厚み、光沢や金属質感が確認できる。
-3. ホイールが見えない角度ではホイール操作を受け付けず、回転だけが可能。
-4. ダブルクリックまたはメニューバーの「正面に戻す」で標準姿勢へ戻る。
+### U-02: Play music
 
-### U-04 常駐・邪魔にならないこと
-1. iPod本体の置き場所はメニューバーの「移動モード」または専用修飾キー＋ドラッグで変更する。
-2. 位置・倍率は次回起動でも維持する。
-3. 通常のmacOSのアプリウィンドウ、Dock、Mission Control操作を極力妨げない。
-4. メニューバーから「常に手前」「ほかのウィンドウに隠れる」「一時的に操作不可（クリック透過モード）」「非表示」を変更できる。
-5. 終了後、音楽を止めるか再生継続するかを設定できる（初期値：Music.appの再生を継続）。
+1. Drag clockwise or counterclockwise around the click-wheel circumference.
+2. Navigate Music > Playlists > selected playlist > Songs.
+3. Press Select to play a track through Music.app.
+4. Show title, artist, elapsed and total time in Now Playing.
+5. Play/Pause, Next, and Previous control Music.app.
+6. Dragging the ring on Now Playing changes the Music.app volume.
 
-### U-05 Video Cameraで動画を録画する
-1. Main Menuの「Video Camera」をホイールで選び、中央ボタンで起動する。
-2. 初回だけmacOSの標準ダイアログでカメラ／マイク使用許可を求める（撮影を開始するまで不必要にカメラを使い続けない）。
-3. iPod本体の**3Dスクリーン内だけ**に、Macの内蔵フロントカメラからのライブ映像が映る。
-4. 中央ボタンを一回押すと録画開始。録画時間と点滅する赤い録画インジケータを画面右上に表示。
-5. 中央ボタンをもう一回押すと録画停止。ファイルを安全に確定して `~/Movies/NanoDesk/Camera Roll/` に保存する。
-6. プレビュー中にMENUでCamera Rollを開き、録画済み動画を選んで中央ボタンで再生する。録画中のMENUは無効化または「録画を停止してください」と案内する。
-7. Camera RollでMENUを押すとVideo Cameraに戻る。設定パネルを除き**別の大きな動画撮影ウィンドウは開かない**。
+### U-03: Rotate the device
 
-## 5. 3Dモデル仕様
+1. Drag an area of the **housing outside the click wheel** to rotate along both axes.
+2. Inspect the back camera detail, edges, thickness, and metallic reflections.
+3. Disable front controls when they are not sufficiently facing the viewer.
+4. Double-click or choose "Reset Orientation" from the menu bar to face front.
 
-### 5.1 モチーフ
-- iPod nano **第5世代（A1320）** の正面・背面・側面を再現。
-- 実機の参考寸法：**高さ90.7 × 幅38.7 × 厚さ6.2 mm**（実寸比を守り、画面内では拡大する）。
-- 縦長で角が丸いアルミニウム筐体、黒いスクリーンベゼル、カラー画面、円形クリックホイール、中央ボタン、上面Holdスイッチ、背面カメラ＋マイク、底面コネクタおよびイヤホン端子の形状を制作。
-- 初期カラーはシルバー。質感は金属の反射・鏡面光沢とエッジハイライトを重視。
-- 画面・ホイールは平坦な画像を貼っただけでなく、それぞれの部品として位置・深さが自然に見えるようにする。
-- 背面は正面の単なるコピーにしない。カメラ／本体の背面意匠を作成。**背面の3Dカメラの向きと、映像を取得するMacのフロントカメラの向きは連動しない**ことをREADMEで明示。
-- 表示には低負荷のリアルタイムメッシュを使い、不要な超高ポリゴンを避ける。
+### U-04: Keep the desktop usable
 
-### 5.2 モデルの作成・納品形式
-- **Blender**などで生成・編集可能なソースモデルを保持する（例：`assets/source/ipod_nano_5g.blend`）。
-- アプリ配布用に**RealityKitがロードできるUSD/USDZ**へ変換したデータを保持する（例：`NanoModel.usdz`）。変換手順をREADMEに記載し、実機で読み込みを検証する。
-- 再生成可能にするため、可能ならBlender Python（`bpy`）によるメッシュ生成スクリプトも同梱。Blenderは**アプリ実行時には必要としない**。
-- 「編集可能な3Dモデル」と「実行可能アプリ」の両方を成果物に含める。
-- 他者の3Dデータを無断取得して同梱しない。形状は自作とし、参照写真やAppleのロゴ・意匠に関する配布上の権利に注意する。個人利用に絞って実装する。
+1. Move the floating device with Option-drag or a menu-bar Move Mode.
+2. Remember location and scale across launches.
+3. Avoid interfering with normal windows, Dock, and Mission Control.
+4. Offer menu-bar toggles for Always on Top, normal layering, input lock/click-through mode, and Hide.
+5. Let the user choose whether music stops on quit; default is **keep Music.app playing**.
 
-### 5.3 3D描画と画面の埋め込み
-- RealityKitの`RealityView`に筐体Entityを読み込む。
-- 画面は**3Dモデル前面の所定位置に固定された動的な表示面**として扱い、モデル回転に同期させる。SwiftUI ViewAttachmentまたはテクスチャ更新のいずれかで実装し、**macOSでの回転時の視認性・透明背景・クリック判定が安定する方式**を技術検証で決定する。
-- 画面情報は音楽状態の更新に応じて再描画する。画面ごとに3Dモデル全体を再生成しない。
-- UIの文言は英語基調（`Music`, `Playlists`, `Songs`, `Now Playing`, `Settings`）。エラー案内などは日本語でよい。
+### U-05: Record video
 
-## 6. デスクトップ表示・ウィンドウ制御
+1. Select Video Camera from Main Menu using the wheel and center button.
+2. Request system camera/microphone permissions when first needed; avoid unnecessary background capture.
+3. Display the live view **only inside the 3D iPod screen**.
+4. One press of Select starts recording; show a blinking red indicator and elapsed timer.
+5. Another press stops recording and safely writes a file under **~/Movies/NanoDesk/Camera Roll/**.
+6. In preview mode, MENU opens Camera Roll. Choose a recording and press Select for playback. While recording, MENU does not navigate away; instead display an instruction to stop first.
+7. MENU from Camera Roll returns to Video Camera. Do not open an unrelated large capture window; a separate settings panel is permitted.
 
-### 6.1 見た目
-- `NSWindow`または`NSPanel`を使い、**タイトルバーなし／枠なし／不透明背景なし**のフローティング表示を実現する。
-- ウィンドウ背景は透明。iPod本体以外の背景色、白い四角、黒い矩形、背景カード、ツールバーは不可。
-- 起動時の見かけの本体高さの目安は350〜450pt（設定可能）。ウィンドウの実サイズはモデルの回転時の投影外接範囲に余裕を持たせる。
-- 透明ウィンドウは技術上存在するが、通常操作でその境界を意識させない。
+## 5. 3D Model Requirements
 
-### 6.2 ウィンドウ機能
-- 最前面固定：オン／オフ切替。オン時は標準ウィンドウより前に表示する（メニューバーやOSの重要UIより優先してはいけない）。
-- 表示／非表示／終了はメニューバーから可能。
-- 本体位置の移動操作：`Option`＋ドラッグ、またはメニューバーの「移動モード」。通常ドラッグの回転操作と混同させない。
-- 拡大／縮小：`Command`＋マウスホイール、または設定スライダー。通常のホイールスクロールと混同させない。
-- 「正面に戻す」「位置をリセット」「倍率をリセット」を提供。
-- 画面外に飛び出さないよう、ディスプレイ構成変更時には可視範囲へ補正する。
+### 5.1 Appearance and geometry
 
-### 6.3 透明部分のクリックについての重要な実現性条件
-**ウィンドウ自体が透明でも、透明ピクセル部分が自動的に背後アプリへクリック透過するとは限らない。**
+- Reference: **fifth-generation iPod nano (A1320)**, including its front, back, and sides.
+- Reference dimensions: **90.7 mm high x 38.7 mm wide x 6.2 mm thick**. Preserve proportions, but allow the on-screen model to be larger.
+- Build the rounded aluminum body, black screen bezel, color display, round click wheel and center button, upper Hold switch, rear camera and microphone detail, bottom connector, and headphone port.
+- Default color: silver. Prioritize realistic metal specular response and edge highlights.
+- Model the screen and click wheel as sensible components with believable positions/depth, not merely one flat decal.
+- Create a distinct back, not a mirrored front. Explain in the README that the rendered back camera's direction is **not connected** to the Mac camera's physical direction.
+- Use an efficient real-time mesh; avoid unnecessary high polygon counts.
 
-- P0：透明な表示、モデルの操作、適切な小さいウィンドウ領域、メニューバーからの「操作ロック／クリック透過モード」を確実に成立させる。
-- P1：3Dモデルの投影外形外へのクリックを背後のウィンドウに届ける方法をスパイクで検証する。macOSの安全・制約を無視した非公開API、無断のアクセシビリティ権限要求や危険なイベントフックを前提としない。
-- クリック透過の範囲制御が安定しない場合は、**操作可能モードと全クリック透過モードの切替**を正式仕様として採用し、P1未達をREADMEに明示する。
+### 5.2 Editable and runtime assets
 
-## 7. 入力・ジェスチャー仕様
+- Keep an editable source scene, ideally Blender (e.g. assets/source/ipod_nano_5g.blend).
+- Export **USD/USDZ** usable in the selected RealityKit runtime (e.g. NanoModel.usdz); document conversion and verify in Xcode on macOS.
+- Where practical, supply a reproducible Blender Python/bpy mesh-generation script. Blender must **not** be needed to run the shipped app.
+- Deliver both an editable 3D asset and a buildable native app.
+- Do not redistribute third-party assets without permission. Use original geometry and review Apple design/trademark considerations before distribution.
 
-### 7.1 領域と優先順位
-3D空間内のヒットテストにより操作対象を判別する。少なくとも `Body`, `Screen`, `WheelRing`, `MenuButton`, `CenterButton`, `PreviousButton`, `NextButton`, `PlayPauseButton` の識別が必要。レンダリングメッシュとは別の不可視ヒット領域を使用してもよい。
+### 5.3 Embedded dynamic screen
 
-1. ボタン押下（短いクリック）→ボタン動作。
-2. ホイールリングのドラッグ→ホイールの回転入力。
-3. 筐体のドラッグ→3Dモデル回転。
-4. `Option`＋本体ドラッグ→表示位置移動。
-5. `Shift`＋ドラッグ→開始位置に関係なく3Dモデル回転（ホイール誤反応時の代替手段）。
-6. `Command`＋スクロール→表示倍率変更。
-7. 前面が大きく傾き、画面やホイールが見えない角度では操作対象を無効化。
-8. Video Cameraのプレビュー／録画では中央ボタンを「録画開始／停止」に割り当てる。ボタン押下の誤判定によって筐体回転や音楽再生が発生しないこと。
+- Load the device geometry into a RealityKit scene, considering RealityView where supported.
+- Attach an **updating display surface to the front of the 3D body** so it rotates with the device. Spike SwiftUI attachments versus dynamic textures; choose based on macOS hit testing, legibility, and transparency.
+- Update screen content when state changes; do not rebuild the entire mesh per frame.
+- Prefer English UI strings (Music, Playlists, Songs, Now Playing, Settings). Error messages may be localized.
 
-### 7.2 3D回転
-- マウス移動量Δx、ΔyをYaw/Pitchへ写像し、上下左右に連続回転。
-- X/Y両方向で360度表示可能。完全に裏面を向けられること。
-- 急激なフリップや軸の暴れを抑える。内部表現はQuaternion等でよい。
-- 回転速度は設定可能。ドラッグ終了時に意図しない大きな慣性回転をしない（慣性はP1）。
-- モデルは中心付近を軸に回転し、ウィンドウ外へ消えない。
+## 6. Desktop Rendering and Window Behavior
 
-### 7.3 クリックホイール
-- リング中央を原点としたマウス位置の偏角`atan2(y,x)`を使って円周方向の移動量を取得。
-- 偏角の`-π ↔ π`境界をまたいでも値が跳ねないようunwrapする。
-- リング半径の内側（中央ボタン）と外側（筐体）はホイールドラッグ対象としない。
-- 方向：時計回りで下／次の項目へ、反時計回りで上／前の項目へ（ユーザー設定で反転可能）。
-- 目安として約15度の回転入力で1項目移動。スピード・閾値・デバウンスを調整可能にし、1〜2pxのブレで誤操作しない。
-- メニュー／一覧では選択項目移動、Now Playing画面では音量変更（例：1単位刻み）。
-- 項目末尾で循環するかどうかは初期値「循環しない」。
-- ホイールのクリック操作（MENU／前へ／次へ／再生停止）とドラッグ操作を区別する。
+### 6.1 Visual design
 
-### 7.4 ボタンの基本挙動
+- Use NSWindow or NSPanel for a **borderless, titlebar-free, visually transparent** floating presentation.
+- Never render a white/black rectangular background, card, browser chrome, or toolbar behind the iPod.
+- Initial apparent device height: approximately **350–450 points**, adjustable.
+- The internal window bounds must accommodate the model's projected rotation.
+- Although a window exists internally, users should not perceive its boundaries.
 
-| 入力 | メニュー画面 | 再生画面 |
+### 6.2 Controls
+
+- Menu-bar toggle for Always on Top (ahead of normal windows, but not critical OS UI), Show, Hide, and Quit.
+- Move with **Option + drag** or menu-bar Move Mode; a normal body drag rotates.
+- Scale with **Command + mouse wheel** or a settings slider; avoid conflict with the iPod click wheel.
+- Provide Reset Orientation, Reset Position, and Reset Scale.
+- When monitor topology changes, bring the model back inside a visible display.
+
+### 6.3 Click-through feasibility
+
+**Transparent pixels do not necessarily pass mouse clicks through to the window underneath.**
+
+- **P0:** Transparent rendering, reliable model interaction, appropriately small window bounds, and a menu-bar input-lock / full click-through toggle.
+- **P1:** Experiment with routing clicks outside the projected model silhouette to underlying apps. Do not assume private APIs, unsafe event hooks, or unnecessary Accessibility permissions.
+- If reliable per-pixel hit routing is unavailable, ship explicit **interactive** versus **fully click-through** modes and document the limitation.
+
+## 7. Input and Gesture Specification
+
+### 7.1 Hit targets and precedence
+
+Use 3D hit testing to distinguish Body, Screen, WheelRing, MenuButton, CenterButton, PreviousButton, NextButton, and PlayPauseButton. Invisible collision meshes are acceptable.
+
+1. Short press on a button => its action.
+2. Circular drag on WheelRing => wheel input.
+3. Drag on Body => 3D rotation.
+4. Option + body drag => move window.
+5. Shift + drag from anywhere => force body rotation (escape hatch for wheel ambiguity).
+6. Command + scroll => change scale.
+7. If the front is rotated out of view, deactivate front controls.
+8. In Video Camera preview/recording, the center button starts/stops recording, never music playback or body rotation.
+
+### 7.2 3D rotation
+
+- Map mouse movement delta-x/delta-y to yaw/pitch for continuous two-axis rotation.
+- Allow a complete 360-degree view on both axes, including the back.
+- Prevent wild axis flips (quaternion representation is acceptable).
+- Rotation sensitivity is adjustable; no uncontrolled inertia on release in P0. Inertia is P1.
+- Rotate about the approximate model center; keep it visible within its hosting window.
+
+### 7.3 Click wheel
+
+- Determine cursor polar angle around the wheel using atan2(y, x).
+- Unwrap angle crossing at -pi/pi to avoid discontinuities.
+- Do not treat the center button or body outside the ring as wheel-drag input.
+- Clockwise = down/next, counterclockwise = up/previous; allow reversal in settings.
+- Initial tuning target: one item per approximately **15 degrees** of arc; configurable speed, threshold, debounce. Minor 1–2 px jitter must not trigger selection.
+- On menus/lists, scroll selection; on Now Playing, change volume (e.g. one unit per step).
+- Do not wrap at the end of a list by default.
+- Differentiate presses on MENU/Previous/Next/Play-Pause from circular movement.
+
+### 7.4 Buttons
+
+| Input | Menu screens | Now Playing |
 |---|---|---|
-| MENU（上） | 一つ前の階層へ | 前画面へ |
-| 中央 | 選択中のメニュー・曲を決定 | 画面／選択項目に応じて決定（初期はNow Playing維持） |
-| 次へ（右） | 必要なら次の選曲操作 | 次の曲へ |
-| 前へ（左） | 必要なら前の選曲操作 | 現曲の先頭へ／連続操作で前曲へ（挙動をテストで調整） |
-| 再生／一時停止（下） | Music.appの再生／一時停止切替 | Music.appの再生／一時停止切替 |
-| ホイールリングをなぞる | 項目の上下移動 | 音量の増減 |
+| MENU (top) | Go back one level | Previous screen |
+| Center | Select item/song | Contextual select; default stay on Now Playing |
+| Next (right) | Next-track operation if applicable | Next track |
+| Previous (left) | Previous-track operation if applicable | Restart current; repeated press previous (validate) |
+| Play/Pause (bottom) | Toggle Music.app playback | Toggle Music.app playback |
+| Rotate wheel ring | Move highlighted row | Change volume |
 
-- 長押しによる早送り／巻き戻し、MENU長押しのホーム復帰、再生ボタン長押しによるスリープはP1。
-- 押下時の視覚フィードバックを提供（わずかな暗転・選択反応など）。
-- 再生対象がないときは無反応にせず、その理由を画面に簡潔に出す。
+- Long-press fast-forward/rewind, MENU hold for Home, and Play button hold for sleep are P1.
+- Give visible button feedback.
+- If playback cannot start, display a concise reason rather than silently ignoring input.
 
-## 8. iPod内部の画面仕様
+## 8. Device Screen Navigation
 
-```text
+~~~text
 Main Menu
- ├─ Music
- │   ├─ Playlists
- │   │   └─ [選択中のプレイリスト]
- │   │       └─ Songs
- │   │           └─ [曲一覧] → Now Playing
- │   └─ Songs → [曲一覧] → Now Playing
- ├─ Now Playing
- ├─ Video Camera → [ライブプレビュー / 録画] → Camera Roll → [録画一覧] → [再生]
- └─ Settings
-     ├─ Change Playlist
-     └─ Connection Status
-```
+  ├─ Music
+  │   ├─ Playlists
+  │   │   └─ [Selected Playlist]
+  │   │       └─ Songs
+  │   │           └─ [Track List] → Now Playing
+  │   └─ Songs → [Track List] → Now Playing
+  ├─ Now Playing
+  ├─ Video Camera → [Live Preview / Recording] → Camera Roll → [Recordings] → [Playback]
+  └─ Settings
+      ├─ Change Playlist
+      └─ Connection Status
+~~~
 
-画面仕様：
-- **Main Menu**：選択中の項目にハイライトを表示。項目数が多い場合はリストスクロール。
-- **Playlists**：Music.appから取得した候補（取得失敗の場合は再試行）と選択状態。
-- **Songs**：指定したプレイリスト内の曲名（可能ならアーティスト名）。長い文字列は省略またはスクロール。
-- **Now Playing**：曲名／アーティスト／再生中・一時停止状態／現在位置と総再生時間／進捗バー／音量変化時のゲージ。
-- **Connection Status**：Music.appへの操作許可、曲がダウンロード済みか、再接続ボタン等。
-- **Video Camera**：iPodのスクリーンがライブビューファインダーになる。右上に録画時間 `00:00`、録画中は点滅する赤い点を表示。中央ボタンで録画開始／停止。
-- **Camera Roll**：録画日時順でローカル動画を一覧表示。中央ボタンで本体スクリーン内の再生画面へ遷移。初期版では録画済み動画の**削除機能を搭載しない**（誤削除を避ける）。Finderで保存先を開ける導線を設定またはメニューバーに提供。
-- 画面表現は2009年当時のiPodを**モチーフ**にしたオリジナルUIとし、Appleの画面画像・ファームウェア・フォントをコピーしない。
-- 初期版は本体内画面の操作に集中し、追加の別ウィンドウを常時表示しない。セットアップや詳細エラー時だけ標準設定パネルは許容。
+- **Main Menu:** Highlight the current selection, scrolling when needed.
+- **Playlists:** Present Music.app playlists, selection state, and retry on fetch failure.
+- **Songs:** Show track titles and, if available, artists. Truncate or scroll long labels.
+- **Now Playing:** Title, artist, playing/paused indicator, elapsed/total time, progress bar, and a temporary volume gauge.
+- **Connection Status:** Automation permission state, availability/download state, reconnect action.
+- **Video Camera:** Live viewfinder on the device screen, recording time (00:00) and blinking red dot at upper right; center button toggles recording.
+- **Camera Roll:** List recordings in date order; center button starts playback inside the iPod screen. **No delete action in P0** to avoid accidental loss; provide an Open in Finder action in settings/menu bar.
+- Create an **original iPod-inspired UI**, not a copy of Apple firmware, screen bitmaps, or proprietary fonts.
+- Avoid any permanent secondary window; permit a native settings/error sheet only when needed.
 
-## 9. Music.app連携・楽曲再生仕様
+## 9. Music.app Integration and Playback
 
-### 9.1 方式
-- Music.appを**実際の音声再生主体**にする。
-- Swiftから`NSAppleScript`または適切なApple Events / ScriptingBridge等を利用し、Music.appにコマンドを送る。実装方式はスパイクで比較して決定。
-- 操作対象アプリはMusic.app（bundle IDが`com.apple.Music`であることを着手時に実機確認）。旧iTunes.appを起動しない。
-- 初回権限は`NSAppleEventsUsageDescription`、必要なEntitlement等を適切に設定する。サンドボックス適用の有無により要件が変わるため、配布形態とあわせて確認する。
-- 秘密のApple Account情報は取得しない。本アプリで音源を復号・保存・再配布しない。
+### 9.1 Technology and permissions
 
-### 9.2 接続API（プロトコル例）
-以下の責務を`MusicPlayerControlling`等の抽象化で分離する。名称は例示であり、APIの存在を断定しない。
+- Music.app is the **audio playback engine**.
+- Use NSAppleScript, Apple Events, or ScriptingBridge as appropriate; compare feasibility in Phase 0 before choosing.
+- Target Music.app (verify bundle identifier com.apple.Music on the actual Mac), not the old iTunes.app.
+- Declare NSAppleEventsUsageDescription and any required entitlements. Validate sandbox choices for the intended distribution.
+- Never collect Apple Account secrets or decrypt, copy, or redistribute protected audio.
 
-```swift
+### 9.2 Suggested abstraction (illustrative, not a guarantee of API support)
+
+~~~swift
 protocol MusicPlayerControlling {
     func connect() async throws
     func listPlaylists() async throws -> [MusicPlaylist]
@@ -264,117 +277,126 @@ protocol MusicPlayerControlling {
     func setVolume(_ value: Int) async throws
     func currentPlayback() async throws -> PlaybackSnapshot
 }
-```
+~~~
 
-- 楽曲の識別は**永続ID（persistent ID）**など安定したキーを優先し、曲名だけをキーにしない。取得できない場合はプレイリストと曲インデックスの組み合わせで明示的な代替策を設計。
-- `PlaybackSnapshot`は最低限、`trackID?`, `title`, `artist`, `durationSeconds?`, `positionSeconds`, `state`, `volume`を持つ。
-- Music.appの操作とステータス取得は、UI描画スレッドをブロックしない専用の処理経路で行う。
-- macOSから許可を拒否された場合、勝手に権限ダイアログを何度も出さない。
+- Prefer stable persistent track IDs over titles. If unavailable, explicitly design playlist+index fallback behavior.
+- PlaybackSnapshot should include at least trackID?, title, artist, durationSeconds?, positionSeconds, state, and volume.
+- Put Apple Events work on an appropriate asynchronous path; never block the rendering/UI thread.
+- Respect a permission denial; do not repeatedly force system authorization prompts.
 
-### 9.3 重要：プレイリストと再生キュー
-- **MVPはユーザーが選択したMusic.appプレイリストを再生範囲として扱う。**
-- 選択した曲から再生開始した後の「次へ／前へ／曲終了時の自動進行」が**そのプレイリスト内に収まること**を実機で検証する。
-- Music.appがプレイリストとは別のキューへ移るなら、コマンド実行順や再生キューの作り方を修正する。無関係な楽曲が勝手に流れないことを受け入れ条件にする。
-- Music.appの外部操作（ユーザーがMusic.appで曲を切り替える等）は定期ポーリングで検知し、3D iPod側の表示へ反映する。
-- ライブラリに対する削除・編集・プレイリスト自動作成等の**破壊的操作は原則行わない**。
-- シャッフル／リピートが有効な場合の挙動はMusic.appに追従し、P0では設定変更の自動強制はしない。想定外の順番があれば状況を表示。
+### 9.3 Selected playlist and playback queue
 
-### 9.4 「iTunesで購入した曲」の扱い
-- iTunes Store購入曲（一般にDRMフリーの購入音源を含む）を対象とする。
-- **P0**：Music.appでユーザーがあらかじめ作成した「購入した曲」等のプレイリストを指定し、その中にある再生可能な曲を本アプリから選曲する。これにより購入済み曲へのアクセスをユーザー自身が管理できる。
-- **P1**：`kind`／購入者情報／クラウドステータス等、Music.appのAppleScript辞書から取得できるメタデータを検証して購入済み曲を自動判別する。ただし「購入曲を100%正確に自動識別できる」とは保証しない。
-- クラウドのみでローカルにダウンロードされていない購入曲については「Music.appでダウンロードしてください」と案内する。Music.app自身が正規に直接再生できる場合の対応は検証次第で拡張可能。
-- サブスクリプション音源が購入済みプレイリストに混在した場合も、DRMを回避せずMusic.appが再生可能かどうかに従う。購入曲限定の自動識別と混同しない。
+- **The MVP limits its playback scope to a user-selected Music.app playlist.**
+- Physically verify that playing a chosen track followed by Next/Previous/automatic advance stays in that playlist.
+- If Music.app uses another queue, adjust command ordering and queue creation. Unrelated tracks must not unexpectedly play.
+- Poll for changes made externally in Music.app and update the 3D iPod UI.
+- Avoid destructive library edits, track deletion, or automatic playlist creation.
+- Respect existing shuffle/repeat state; P0 must not silently override it. Surface surprising queue behavior.
 
-### 9.5 状態同期・ポーリング
-- 再生中の状態確認目安：**1秒間隔**。一時停止中・非表示時は頻度を下げる（例：3〜5秒間隔）。
-- 再生操作後は直後に状態を再取得し、ユーザー操作への表示遅延を小さくする。
-- エラー時はバックオフし、リトライ連打でMusic.appを固めない。
-- Music.appの音量（0〜100想定）とiPod内の音量表示を同期。**システム全体の音量変更とは区別**する。
-- Music.appの曲切替・停止やアプリ終了／再起動に追従する。
+### 9.4 Purchased iTunes Store music
 
-## 9A. Video Camera（実機再現・P0）
+- Support purchased iTunes Store files, including DRM-free purchases.
+- **P0:** Let the user select their own "Purchased Songs" (or equivalent) playlist in Music.app and browse playable tracks within it.
+- **P1:** Research the Music.app scripting dictionary for kind, purchaser information, cloud status, etc. Automatic purchase detection must remain best-effort, not guaranteed.
+- For cloud-only tracks, direct the user to download or authorize them in Music.app. Extend this only if Music.app itself can lawfully play them.
+- If subscription tracks coexist in that playlist, do not bypass DRM; playback availability follows Music.app, and do not mislabel everything as verified purchased music.
 
-### 9A.1 実機に関する確定事項と再現範囲
-- iPod nano **第5世代（2009年）には動画撮影用カメラとマイクが標準搭載**されている。これは第5世代のVideo Cameraの再現であり、**独自に追加する写真撮影機能ではない**。
-- Appleの公式ユーザーズガイドによれば、メインメニューの`Video Camera`からビューファインダーへ進み、**中央ボタンで録画開始／停止**、録画中は赤い点と経過時間が表示され、`MENU`から`Camera Roll`に進んで録画した動画を再生できる。
-- Appleの資料では**VGA 640×480、H.264＋AAC、30fps**。当時の映像に近づけるための出力プリセットとして採用するが、Mac内蔵カメラと実機ではレンズ・センサー・圧縮実装が異なり、**完全に同じ画質は保証しない**。
-- 実機には撮影エフェクトや縦横向き撮影、録画ファイルごとの2GB上限があるが、**MVPでは通常の横向き4:3録画が必須**。エフェクト／縦向きモードはP1。2GB上限の厳密な模倣は行わない（ディスク不足・ファイルサイズは安全に扱う）。
+### 9.5 State synchronization
 
-### 9A.2 カメラ・マイク入力／プレビュー
-- **AVFoundation**の`AVCaptureSession`等を使用し、利用可能なMac内蔵フロントカメラを優先して選ぶ。初期版はMacBook Air M3の内蔵カメラを前提とするが、カメラが見つからない場合はユーザーに理由を示す。
-- カメラとマイクの許可状態を別々に管理する。`NSCameraUsageDescription`／`NSMicrophoneUsageDescription`を追加し、サンドボックスを使う構成なら対応するカメラ／音声入力Entitlementも設定する。
-- カメラ映像をiPodの3Dスクリーンの動的表示面へ低遅延で反映する。画面以外にライブ映像を表示しない。マウスで筐体を回転しても表示面は筐体に追従する。
-- Macのカメラは高解像度でも、**録画出力は4:3の640×480**に合わせる。入力映像が16:9なら縦横比を維持した中央クロップ等で4:3に合わせ、引き伸ばしはしない。
-- プレビューのみの状態と録画状態を区別し、Camera Roll／Musicへの遷移時、非表示・終了時は不要なカメラセッションを停止する。録画中にアプリを終了／非表示にする場合は録画を安全に終了・保存してから終了／非表示に移る。
-- フロントカメラは鏡像のプレビューが自然なため、**プレビューの左右反転の有無**と**保存ファイルの左右反転の有無**を区別して実装・記録する。初期版はプレビュー鏡像ON／保存ファイル鏡像OFFとする（実機検証で必要なら設定化）。
+- Poll roughly **once per second** during playback; slow to about 3–5 seconds while paused or hidden.
+- Refresh promptly after a command to minimize apparent latency.
+- Back off on errors so Music.app is not flooded with retries.
+- Synchronize Music.app's own volume (assumed 0–100 after verification), **not system-wide output volume**.
+- Follow Music.app track switching, stopping, quitting, and relaunching.
 
-### 9A.3 録画と動画形式
-- 初期版の保存仕様：`.mp4`（H.264/AACを格納できる場合）または`.mov`。採用したコンテナ形式をREADMEに明記。映像**640×480／30fpsを目標**とし、音声をAACで収録する。目標映像ビットレートは**約1.5 Mbps**で、録画可能な実値を検証する。
-- AVFoundationで録画処理を実装。指定した解像度・fps・コーデックが確実に出力されるよう、必要なら`AVAssetWriter`でサンプルをエンコードする。`AVCaptureMovieFileOutput`に任せるだけで条件を満たしたとは判断しない。
-- 音声はMac内蔵マイクを優先。マイク権限が拒否された場合は**無音動画として録画を続ける選択肢**を案内し、音声録音済みと誤表示しない。
-- 録画停止時は非同期で出力を確定する。保存が完了するまで成功表示にしない。中断・権限取消・デバイス取り外し・ストレージ不足に対し、可能なら録画済み部分を安全に確定し、失敗理由を表示する。
-- 録画のファイル名は日時・衝突防止サフィックス付き（例：`nano_20261120_130500.mp4`）。**既存ファイルを上書きしない**。
-- 保存先の初期値はユーザーのMoviesディレクトリ以下：`~/Movies/NanoDesk/Camera Roll/`。権限と書き込み可否を確認し、必要に応じmacOSの保存パネルや適切なセキュリティスコープを使う。サンドボックス環境で自由に書き込めると決めつけない。
-- 編集・アップロード・外部ストレージ連携・静止画キャプチャ・SNS共有はMVP対象外。
+## 9A. Video Camera (original-device feature; P0)
 
-### 9A.4 操作仕様
+### 9A.1 Authenticity and MVP fidelity
 
-| 状態 | 中央ボタン | MENU | ホイールリング |
+- The **2009 fifth-generation iPod nano includes a built-in video camera and microphone**. This feature recreates its Video Camera, **not a newly invented still camera**.
+- Apple's user guide describes Main Menu > Video Camera, pressing the center button to start/stop recording, a red indicator/timer, and MENU > Camera Roll for playback.
+- Target **VGA 640x480, H.264 with AAC audio, 30 fps**. These settings emulate the original format, but identical visual quality is **not guaranteed** due to different sensors, optics, and encoders.
+- The actual device also offers effects and orientation modes, and limits a recording to 2 GB. For MVP, normal landscape 4:3 recording is required; effects/portrait are P1. Do not deliberately impose the original 2 GB limit, but handle disk exhaustion/filesize safely.
+
+### 9A.2 Camera/microphone and live preview
+
+- Prefer the Mac built-in front camera with AVFoundation (e.g. AVCaptureSession); target the MacBook Air M3, and explain when no camera is available.
+- Request camera and microphone separately. Set NSCameraUsageDescription and NSMicrophoneUsageDescription and sandbox capture entitlements where applicable.
+- Render camera frames with low latency on the **3D screen's dynamic surface only**. Rotating the body rotates the screen along with it.
+- Convert/crop high-resolution or 16:9 input to **4:3 640x480 output**, preserving proportions (center crop rather than stretch).
+- Differentiate previewing from recording. Stop unused capture sessions on navigation, hide, or quit. During an active recording, finalize safely before hiding/quitting.
+- Separately configure mirrored preview and mirrored saved output: initially **preview mirrored ON, saved video mirrored OFF**. Record the behavior and make configurable if local tests require.
+
+### 9A.3 Recording, encoding, and storage
+
+- File extension: **.mp4** where H.264/AAC support permits, otherwise **.mov**. Document the chosen container in README.
+- Output target: **640x480, 30 fps, H.264**, **AAC microphone audio**, approximately **1.5 Mbps video bitrate**; verify metadata on a real recording.
+- Implement via AVFoundation. Use AVAssetWriter if necessary to guarantee the specified dimensions, frame rate, and codec. Do not assume AVCaptureMovieFileOutput automatically meets the target.
+- Prefer the built-in microphone. If mic permission is denied, offer a clear **silent video** option rather than pretending audio is being captured.
+- Finalize asynchronously after stop; never display "Saved" before completion. Handle interruptions, permission revocation, hardware loss, and low storage; preserve partial output where safely possible.
+- Generate collision-safe timestamped filenames, e.g. nano_20261120_130500.mp4. **Never overwrite an existing file.**
+- Default path: **~/Movies/NanoDesk/Camera Roll/**. Validate access and write permissions. For sandboxed apps use a user-selected folder and security-scoped bookmark where necessary; do **not** assume access to arbitrary directories.
+- Editing, upload, external storage integration, still capture, and social sharing are excluded.
+
+### 9A.4 Controls
+
+| State | Center | MENU | Wheel ring |
 |---|---|---|---|
-| Video Camera（プレビュー） | 録画開始 | Camera Rollを表示 | P0では動作なし |
-| Video Camera（録画中） | 録画停止／保存 | 録画中は画面遷移せず案内 | 無効 |
-| Camera Roll（一覧） | 選択動画を再生 | プレビューへ戻る | 動画一覧をスクロール |
-| Camera Roll（再生） | 再生／一時停止 | 動画一覧へ戻る | P0では操作なし |
+| Video Camera (preview) | Start recording | Open Camera Roll | No P0 action |
+| Video Camera (recording) | Stop and save | Stay; prompt to stop first | Disabled |
+| Camera Roll (list) | Play selected video | Return to preview | Scroll recordings |
+| Camera Roll (playback) | Play/Pause | Return to list | No P0 action |
 
-- Video Cameraへ移る際、Music.appで再生中の曲を一時停止することを基本動作とする（実機でもカメラ選択時に音楽が止まる）。撮影終了後に勝手に音楽を再開しない。
-- 録画中は3D筐体の回転が可能でも録画は継続する。裏向きでディスプレイが見えない場合に録画停止操作が必要なら「正面に戻す」を利用できる。
-- 実機に近づけるため、録画時間と赤いインジケーターは3D画面内に描画し、Macの別ウィンドウを出さない。
+- Pause currently playing Music.app audio on entering Video Camera, matching the original device's behavior. Do not auto-resume music when capture ends.
+- Body rotation must not interrupt active recording. Users can invoke Reset Orientation if recording controls face away.
+- Red recording indicator and elapsed time belong inside the 3D screen, never in a separate capture window.
 
-### 9A.5 アーキテクチャ・検証
-- `CameraControlling`の抽象化、`CameraCaptureService`（AVFoundation）、`CameraPermissionService`、`CameraRecordingStore`、`VideoCameraState`、`CameraRollViewModel`等に責務分離する。
-- **カメラがないCodex Cloud環境用**にモックのプレビューフレームと疑似録画状態を用意する。Mac上でのみOS権限／実カメラ撮影を検証可能であることを明記する。
-- 録画処理の完了コールバック、権限拒否、時間表示、録画状態の遷移は単体テストで確認。動画の実解像度・fps・コーデック／音声有無はMacで録画したファイルのメタデータから**機械的にチェック**する。
+### 9A.5 Architecture and testing
 
-## 10. 設定・データ保存
+- Separate CameraControlling, CameraCaptureService (AVFoundation), CameraPermissionService, CameraRecordingStore, VideoCameraState, and CameraRollViewModel.
+- Provide mock preview frames and recording state for **Codex Cloud environments without camera hardware**. Real capture and OS permission verification are Mac-only.
+- Unit-test permission refusal, start/stop transitions, completion callbacks, and timer state.
+- On a Mac, inspect the generated file metadata **programmatically** for dimensions, fps, video/audio codecs, and presence of audio.
 
-`UserDefaults`等を使い次を保存する。
+## 10. Settings and Local Persistence
 
-| 設定キー例 | 初期値 |
+Persist settings using UserDefaults or another appropriate local preference mechanism.
+
+| Example key | Default |
 |---|---|
-| `selectedPlaylistID` | 未選択 |
-| `rotationSensitivity` | 標準 |
-| `wheelDirection` | 時計回り＝下／次 |
-| `windowOrigin` | 画面右下寄り（可視領域へ補正） |
-| `windowScale` | 1.0 |
-| `windowAlwaysOnTop` | true |
-| `clickThroughMode` | false |
-| `rotationQuaternion` | 正面姿勢 |
-| `stopPlaybackOnQuit` | false |
-| `cameraSaveFolder` | `~/Movies/NanoDesk/Camera Roll/`（サンドボックス対応時はbookmark等） |
-| `cameraPreviewMirrored` | true |
-| `cameraRecordedVideoMirrored` | false |
-| `cameraRecordingPreset` | `VGA_640x480_30fps_H264_AAC` |
+| selectedPlaylistID | None |
+| rotationSensitivity | Normal |
+| wheelDirection | Clockwise = down/next |
+| windowOrigin | Toward bottom right, adjusted to visible screen |
+| windowScale | 1.0 |
+| windowAlwaysOnTop | true |
+| clickThroughMode | false |
+| rotationQuaternion | Front-facing |
+| stopPlaybackOnQuit | false |
+| cameraSaveFolder | ~/Movies/NanoDesk/Camera Roll/ (bookmark if sandboxed) |
+| cameraPreviewMirrored | true |
+| cameraRecordedVideoMirrored | false |
+| cameraRecordingPreset | VGA_640x480_30fps_H264_AAC |
 
-秘密の認証情報や楽曲ファイル本体は保存しない。プレイリストが削除されていたら未選択に戻し再選択を求める。
+Do not persist credentials or copies of purchased music. If the selected playlist is deleted, clear the saved ID and request reselection.
 
-## 11. 推奨技術スタック・アーキテクチャ
+## 11. Recommended Architecture and Stack
 
-| レイヤー | 技術・役割 |
+| Layer | Technology and responsibility |
 |---|---|
-| macOSアプリ基盤 | Swift／SwiftUI（設定・メニュー）＋AppKit（透明ウィンドウ・メニューバー・入力） |
-| 3D | **RealityKit**／`RealityView`／USDZモデル。SceneKitは非推奨のため新規の中心技術には採用しない |
-| 3Dモデリング | Blender＋必要に応じてPython生成スクリプト。実行時依存にはしない |
-| 音楽操作 | Music.appへのApple Events／AppleScript連携。`MusicPlayerControlling`に抽象化 |
-| 動画撮影 | AVFoundation（`AVCaptureSession`、必要に応じて`AVAssetWriter`）、権限管理、ローカル保存、3D画面へのライブプレビュー |
-| 状態管理 | `AppState`＋`PlaybackStore`＋`NanoNavigationState`。UI更新はMainActor等に集約 |
-| データ保存 | UserDefaults（設定のみ） |
-| テスト | Swift TestingまたはXCTest／手動macOS E2Eテスト |
-| 配布 | Xcodeでビルドするローカル`.app`を優先。公的配布は別途署名・Notarization・審査確認 |
+| Native shell | Swift / SwiftUI for preferences; AppKit for transparent window, menu bar, and input |
+| 3D | **RealityKit**, RealityView, USDZ; do not center a new implementation on deprecated SceneKit |
+| Modeling | Blender, optionally Python generation; not a runtime dependency |
+| Music bridge | Apple Events/AppleScript to Music.app behind MusicPlayerControlling |
+| Video | AVFoundation (AVCaptureSession; AVAssetWriter if needed), permissions, local storage, live screen texture |
+| App state | AppState, PlaybackStore, NanoNavigationState; manage UI updates on MainActor as appropriate |
+| Persistence | UserDefaults for preferences |
+| Tests | Swift Testing or XCTest plus manual macOS end-to-end tests |
+| Installation | Locally built .app; public distribution requires separate signing/notarization/legal assessment |
 
-### 11.1 推奨ディレクトリ
+### 11.1 Proposed structure
 
-```text
+~~~text
 NanoDesk/
   README.md
   docs/
@@ -383,7 +405,7 @@ NanoDesk/
     IMPLEMENTATION_PLAN.md
     QA_CHECKLIST.md
     RISKS_AND_FINDINGS.md
-  NanoDesk.xcodeproj/                # またはXcodeに適したプロジェクト形式
+  NanoDesk.xcodeproj/                 # Or equivalent native Xcode project
   NanoDesk/
     App/NanoDeskApp.swift
     App/AppCoordinator.swift
@@ -410,7 +432,7 @@ NanoDesk/
     Resources/NanoModel.usdz
   assets/
     source/ipod_nano_5g.blend
-    scripts/generate_nano_model.py    # 採用時のみ
+    scripts/generate_nano_model.py     # Only if adopted
   NanoDeskTests/
     ClickWheelControllerTests.swift
     NanoNavigationStateTests.swift
@@ -418,203 +440,205 @@ NanoDesk/
     MusicAppClientMockTests.swift
     VideoCameraStateTests.swift
     CameraCaptureServiceMockTests.swift
-```
+~~~
 
-### 11.2 設計原則
-- 3D形状・スクリーン内容・入力検出・音楽制御・動画撮影を**密結合にしない**。
-- `MusicPlayerControlling`のMockを用意し、Music.app未接続でも3D・メニュー操作を開発・テストできるようにする。
-- すべてのAppleScriptコマンドを文字列連結で散在させない。ブリッジに集約し、入力値のエスケープ／エラー解析を実装する。
-- UIスレッドから重いスクリプト呼び出しをしない。
-- 設定やデータはMacローカル内にとどめ、外部サーバー・分析SDKは不要。
+### 11.2 Engineering principles
 
-## 12. エラー・権限・安全対策
+- Keep 3D geometry, on-device screen, input, music controller, and camera module **loosely coupled**.
+- Mock MusicPlayerControlling to test UI when Music.app is unavailable.
+- Centralize scripting commands in one bridge; escape input and normalize errors, rather than concatenating ad hoc AppleScript throughout the codebase.
+- Never block the UI thread on script requests.
+- Keep settings and user data on the Mac. No backend, analytics SDK, or cloud account is needed.
 
-| 状況 | 期待する挙動 |
+## 12. Errors, Permissions, and Safety
+
+| Condition | Expected handling |
 |---|---|
-| Music.app未起動 | 許可があれば起動・接続するか、ユーザーに起動を促す |
-| Music.appへのAutomation未許可 | 権限許可を案内し、再接続導線を出す。3Dモデル閲覧は維持 |
-| Automationを拒否済み | OSの「システム設定 → プライバシーとセキュリティ → オートメーション」確認を案内 |
-| プレイリスト未選択 | 曲の再生ボタンでは接続／選択案内を表示 |
-| プレイリストが空 | 「曲がありません」と表示 |
-| トラックが再生不可 | 曲をスキップするかエラーを説明し、Music.app側の認証／ダウンロードを案内 |
-| Music.appが途中で終了 | アプリ自体を落とさず接続状態を更新し、再接続を案内 |
-| AppleScriptの応答が遅い | UIを固めずタイムアウトやリトライを適切に処理 |
-| 長い曲名・日本語・絵文字 | 適切に描画し、文字化け・はみ出しを起こさない |
-| 回転後に画面が裏面を向く | ボタン誤クリックなしで回転を継続できる |
-| マルチディスプレイの増減 | モデルが完全に画面外へ残らない |
-| カメラ／マイク権限が未許可・拒否済み | OS標準許可フロー／システム設定案内。無音録画時は明示 |
-| カメラが見つからない・使用中 | クラッシュせず原因と再試行方法を表示。Music機能は引き続き利用可能 |
-| 録画中の非表示／終了／権限変更／容量不足 | 可能な範囲でデータを確定し、録画破損を避ける。必要に応じ停止を案内 |
-| カメラ保存先への書込不可 | 保存成功と誤表示しない。ユーザー操作で保存先を再選択させる |
+| Music.app not running | Start/connect when authorized or ask the user to open it |
+| Music.app Automation permission not granted | Offer permission workflow/retry; keep the 3D model visible |
+| Automation was denied | Explain System Settings > Privacy & Security > Automation |
+| No playlist selected | Show selection prompt instead of blindly playing |
+| Empty playlist | Explain that no songs are available |
+| Unplayable track | Explain/skip; suggest Music.app authorization or download |
+| Music.app quits during use | Update state and offer reconnect; app must not crash |
+| Slow AppleScript response | Timeout/retry without freezing UI |
+| Long titles, Japanese characters, emoji | Render safely without clipping or corruption |
+| Device rotated to back | Allow rotation but do not misfire invisible front controls |
+| Display connected/disconnected | Restore model to a visible screen |
+| Camera/microphone permission missing or denied | Native permission guidance; explicitly identify silent capture |
+| Camera missing or busy | Explain and retry without crashing; music still works |
+| Quit/hide/permission change/disk full during recording | Safely finalize when possible and report errors |
+| Save folder not writable | Never claim success; let the user choose a writable location |
 
-- macOSの権限を迂回しない。DRM解除・保護ファイルのコピー・ライセンス制限回避をしない。
-- AppleScript／Apple Eventsの呼び出し先をMusic.appに限定する。不要な全体のアクセシビリティ権限や画面収録権限を要求しない。カメラとマイクの許可はVideo Camera利用時のみ適切に求める。
-- Appleの知的財産・ブランド表現は個人利用の試作を前提にし、公開・商用配布する際は権利確認を別タスクにする。
+- Do not circumvent OS privacy controls, DRM, or licensing restrictions.
+- Limit automation targets to Music.app. Do not request global Accessibility or Screen Recording permission without a documented need. Request camera/microphone access only for Video Camera.
+- This is a personal-use prototype; before public release or commercial distribution, review Apple's design, logo, and trademark rights.
 
-## 13. 非機能要件
+## 13. Nonfunctional Requirements
 
-- **起動**：通常のアプリ起動で3Dモデルが現れ、Music.appに接続できなくてもモデルは表示できる。
-- **操作レスポンス**：モデル回転・ボタン押下・ホイール入力の視覚反応を、通常利用時に体感上遅延なく表示する（目標：描画は30fps以上、入力反応は100ms以内）。外部Music.appからの再生完了応答は別扱い。
-- **負荷**：Apple Silicon M3上での使用を想定。操作中は滑らかに、非操作時は更新頻度を下げてバッテリー消費を抑える。アイドル時のCPU使用率は可能な限り低く保つ。
-- **信頼性**：Music.appが応答しなくてもUIはフリーズしない。
-- **ユーザビリティ**：3D回転と音楽操作が誤判定されない。透明ウィンドウが他アプリ操作を過度に阻害しない。
-- **保守性**：描画・入力・Music.app連携を分離し、iPod nanoの他世代にモデルを変更可能にする。
-- **オフライン**：購入済み楽曲のローカル再生が可能なら本アプリ利用にネット接続を要求しない（初期の認証・ダウンロード等はMusic.appの条件に従う）。Video Cameraの録画・保存にもネット接続は不要。
-- **外観品質**：正面・側面・裏面で立体感があり、ポリゴンの破綻、黒い背景、ホイールの位置ずれがない。
+- **Launch:** Display the 3D device through a normal app launch, even if Music.app connection fails.
+- **Response:** Smooth 3D rotation, wheel input, and button feedback. Target at least **30 fps** rendering and **under 100 ms** local visual response; Music.app command completion can lag separately.
+- **Efficiency:** Optimize for M3 Apple Silicon; reduce update rate while idle to conserve battery. Keep idle CPU use minimal.
+- **Reliability:** A stalled Music.app must not freeze the NanoDesk UI.
+- **Usability:** Input hit testing must not confuse rotation with wheel control. The transparent host must not excessively obstruct other windows.
+- **Maintainability:** Separate rendering, input, and integration layers, allowing a different nano generation in future.
+- **Offline:** No internet needed when downloaded purchased tracks are already playable locally. Music.app download/authorization is separate; recording also works offline.
+- **Visual quality:** Real depth from front/side/back, without mesh defects, black background artifacts, or misaligned wheel.
 
-## 14. 開発工程（Codexへの実行順序）
+## 14. Delivery Phases for Codex
 
-> **必ず検証先行で実装する。** 最初から完成した3Dアセットや全機能を作り込まない。macOS上で成立しない技術上の前提を最初に潰す。
+> **Validate high-risk platform assumptions first.** Do not invest in a finished 3D asset or full app before confirming macOS feasibility.
 
-### Phase 0 — 技術検証／スパイク（最優先）
+### Phase 0 — Technical spikes (highest priority)
 
-1. Xcode／Swift／macOSバージョンと利用APIを確認する。実機での検証が不可ならその制約を報告する。
-2. **透明・枠なしのmacOSウィンドウ**に単純な回転する3D直方体を置き、背景が透明か、クリック・ドラッグできるか確認する。
-3. RealityKitで、マウスによる3Dヒットテストとモデル回転ができることを確認する。
-4. 3D面に曲名を表示する最小サンプルを作り、画面が回転に追従するか確認する。
-5. Music.appに対し、権限取得→プレイリスト列挙→曲列挙→1曲再生→再生状態取得→停止／再開→曲送り→音量変更を**実際に**検証する。
-6. クリック透過の可否を検証し、P0/P1のスコープを確定する。
-7. `AVFoundation`でのカメラ／マイク許可と、Mac内蔵カメラ→640×480／30fps H.264/AAC出力の最小プロトタイプを実機で検証する。カメラがない環境ではMockを作成し、未検証のまま完了扱いしない。
-8. 調査結果を`docs/RISKS_AND_FINDINGS.md`に「確認済み／未確認／代替案」で記録する。
+1. Inspect the local Xcode/Swift/macOS versions and SDKs. If Mac access is unavailable, record the limitation.
+2. Host a simple rotatable 3D cuboid in a **transparent, borderless** macOS window. Test transparency and mouse interaction.
+3. Demonstrate 3D hit testing and rotation in RealityKit.
+4. Attach minimal dynamic song-title text to a 3D plane and confirm it rotates with the model.
+5. On a Mac, actually test Music.app permissions, playlist enumeration, track listing, playing one song, playback status, pause/resume, skip, and volume adjustment.
+6. Probe click-through behavior; determine P0/P1 limits.
+7. On a Mac, prototype AVFoundation camera/mic permission and a real **640x480/30 fps H.264/AAC** recording. In Cloud without hardware, mock it and mark it unverified.
+8. Record results in docs/RISKS_AND_FINDINGS.md with **Verified / Unverified / Alternatives**.
 
-**Phase 0の完了条件**：透明3DオブジェクトとMusic.appの制御、Video CameraのAVFoundation録画が、少なくとも個別の最小実装で実機動作していること。これが未確認なら次フェーズに進まない。ただしCodex Cloudのみのタスクでは実機検証項目を`BLOCKED_LOCAL_MAC`として整理し、Cloudで可能な実装とテストを先に進めてよい。**実機で未確認の機能を検証済み／完成と報告してはいけない**。
+**Phase 0 exit gate:** The minimal transparent 3D UI, Music.app control, and AVFoundation video capture must each be physically verified on a Mac before declaring Phase 0 fully complete. For a Cloud-only task, label pending checks **BLOCKED_LOCAL_MAC**, and proceed with isolated implementation/testing if useful. **Never claim real-device verification without real-device testing.**
 
-### Phase 1 — 3D筐体とデスクトップ配置
+### Phase 1 — Device model and placement
 
-1. 第5世代iPod nanoの3Dモデルを制作。正面・側面・裏面・ホイール・ボタンの部品を識別可能にする。
-2. USDZをアプリに組み込み、透明ウィンドウで表示。
-3. 回転・移動・拡大縮小・リセット、位置記憶を実装。
-4. MenuBarから表示／非表示／終了等を制御。
+1. Build a fifth-generation nano model with individually identifiable front/back/side/wheel/buttons.
+2. Export/load USDZ in the transparent macOS presentation.
+3. Implement rotate, move, resize, reset, and persistent placement.
+4. Add menu-bar Show/Hide/Quit.
 
-### Phase 2 — 入力と擬似iPod UI
+### Phase 2 — Click wheel and simulated iPod UI
 
-1. ホイール領域／中央ボタン／4方向ボタン／本体の3Dヒットテストを実装。
-2. 円周ドラッグで項目移動、筐体ドラッグで自由回転、両者の競合回避を実装。
-3. Main Menu／Music／Playlists／Songs／Now Playingを**Mockデータ**で実装。
-4. 単体テスト（角度unwrap・方向・閾値・画面遷移）を作成。
+1. Implement 3D hit testing for ring, center, four directions, and body.
+2. Implement circular scrolling, free device rotation, and conflict resolution.
+3. Implement Main Menu/Music/Playlists/Songs/Now Playing with **mock data**.
+4. Add tests for angle unwrapping, direction, thresholds, and navigation.
 
-### Phase 3 — 実際の音楽再生
+### Phase 3 — Real Music.app playback
 
-1. Music.app接続許可のUI・権限エラー対応。
-2. `MusicAppClient`にプレイリスト／曲取得・選曲再生・操作を実装。
-3. Now Playing同期、再生位置・音量・外部からの曲切替を反映。
-4. 曲終わりと「次へ／前へ」が選択プレイリストの再生範囲と一致するか検証。
-5. ダウンロードされていない曲などのエラーを処理。
+1. Implement Automation permission and denial handling.
+2. Implement MusicAppClient: playlist listing, track listing, playback and controls.
+3. Synchronize Now Playing, progress, volume, and external changes.
+4. Verify Next/Previous and automatic progression remain within the selected playlist.
+5. Handle unavailable/cloud-only songs and related errors.
 
-### Phase 3.5 — Video Camera（動画撮影、P0必須）
+### Phase 3.5 — Video Camera (**mandatory P0**)
 
-1. Main Menuに`Video Camera`を追加し、Mockカメラで3D画面内プレビューとホイール／中央ボタンの状態遷移を完成させる。
-2. Mac内蔵カメラ・マイクの権限取得とAVFoundation接続を実装する。
-3. 4:3ライブプレビューを3Dスクリーンの動的表示面へ反映する。
-4. 中央ボタンで録画開始／停止し、赤い録画表示・経過時間表示を実装。
-5. 640×480、30fps目標、H.264＋AACの録画ファイルをMacローカルに保存し、出力メタデータを実機検証する。
-6. `Camera Roll`で保存済みの動画一覧とiPodスクリーン内の再生を実装する。
-7. 権限拒否・録画中終了・書込失敗・無音録画・カメラ未接続などをテストする。
+1. Add Video Camera to Main Menu; complete mock preview/recording states on the 3D screen.
+2. Add native camera/mic permission and AVFoundation capture.
+3. Show a correctly cropped 4:3 live preview attached to the device screen.
+4. Center-button record/stop, red REC indicator, and elapsed timer.
+5. Save local 640x480, target-30-fps H.264/AAC output; validate real metadata on Mac.
+6. Implement Camera Roll list and video playback inside the iPod screen.
+7. Test denied permissions, quit during recording, write failures, audio-less mode, and camera disconnection.
 
-**Phase 3.5を完了するまでMVP完成とはみなさない。静止画撮影は実装しない。**
+**The MVP is not complete without Phase 3.5. Do not add still-photo capture.**
 
-### Phase 4 — 仕上げとQA
+### Phase 4 — Visual refinement and QA
 
-1. 金属・ガラス質感、画面の読みやすさ、ボタン反応を調整。
-2. 実機で長時間使用時のCPU・メモリ・電力影響を確認。
-3. 画面解像度・日本語曲名・ウィンドウ重なり・ディスプレイ切替などの回帰テスト。
-4. READMEにセットアップ・起動・接続許可・購入曲のプレイリスト作成方法・**カメラ／マイク権限と動画保存先**・既知制約・ビルド方法を記載。
-5. `.app`をローカルで起動できる成果物とソース・3Dモデルデータを揃える。
+1. Refine metal/glass materials, legibility, and button feedback.
+2. Check sustained CPU, memory, and battery usage on physical hardware.
+3. Run regression tests for resolutions, Japanese titles, overlapping windows, and monitor changes.
+4. Document setup, usage, permission requests, purchased-song playlist creation, **camera/mic permissions and video save path**, known limits, and build instructions in README.
+5. Deliver a locally runnable .app together with source and editable/exported 3D assets.
 
-## 15. MVP受け入れテスト（Acceptance Criteria）
+## 15. MVP Acceptance Criteria
 
-| ID | 手順 | 合格条件 |
+| ID | Test | Pass condition |
 |---|---|---|
-| AC-01 | 起動 | 壁紙の上にiPod本体だけが見え、黒／白の四角や標準のタイトルバーがない |
-| AC-02 | 筐体ドラッグ | 左右・上下に滑らかに回り、背面と側面を確認できる |
-| AC-03 | 正面復帰 | コマンド実行で正面姿勢へ戻る |
-| AC-04 | ホイールドラッグ | 円周方向に沿ってなぞるとメニュー選択が増減し、角度境界で飛ばない |
-| AC-05 | 各ボタン | MENU、中央、前へ、次へ、再生／一時停止のクリックが対応動作を実行する |
-| AC-06 | 干渉防止 | ホイール操作で意図せず筐体が回転せず、筐体回転で音量が変わらない |
-| AC-07 | 楽曲選択 | Music.app内の指定プレイリストの曲がiPod画面に一覧表示される |
-| AC-08 | 再生 | 曲を選び中央ボタンを押すと、Macから該当する曲の音が出る |
-| AC-09 | 再生制御 | 再生／一時停止／次曲／前曲／音量がMusic.appに反映される |
-| AC-10 | 状態同期 | Music.app側で曲を変更するとiPodのタイトル・状態が追従する |
-| AC-11 | 曲終了 | 選択プレイリスト外の無関係な楽曲へ意図せず移行しない |
-| AC-12 | 権限拒否 | アプリはクラッシュせず、3Dモデルを見られ、権限設定方法が分かる |
-| AC-13 | 永続化 | 再起動後に位置・倍率・選択プレイリストを復元する |
-| AC-14 | 常駐 | メニューバーから表示／非表示・最前面切替・終了が可能 |
-| AC-15 | 安定性 | Music.app未起動・曲なし・曲名に日本語／絵文字あり、でクラッシュしない |
-| AC-16 | ソースと3Dデータ | ローカルでビルドできるプロジェクト、編集可能な3D原本、USDZを含む |
-| AC-17 | Video Camera起動 | iPod内のVideo Cameraを選ぶと、本体画面上にMacカメラ映像が現れる。余計なメインウィンドウはない |
-| AC-18 | 録画操作 | 中央ボタンで録画開始／停止。赤いREC点灯・録画経過時間を表示 |
-| AC-19 | 動画ファイル | 640×480（4:3）、H.264、AAC音声、原則30fps目標のローカル動画が保存され、実測メタデータを確認できる |
-| AC-20 | Camera Roll | 保存動画の一覧をホイールで選択し、iPod画面内で再生できる |
-| AC-21 | 録画許可と失敗時 | カメラ／マイク未許可、カメラなし、容量不足、保存不可でもクラッシュせず、状況を説明できる |
-| AC-22 | 撮影中終了 | 非表示・終了操作で録画を安全に停止／確定し、保存できなかった場合はエラーを通知する |
-| AC-23 | スコープ遵守 | 静止画シャッター・写真保存機能が含まれず、動画撮影のみを実装する |
+| AC-01 | Launch | Only the iPod is visible over the desktop, without title bar or black/white rectangle |
+| AC-02 | Drag housing | Smooth horizontal and vertical rotation; inspect sides and back |
+| AC-03 | Reset rotation | Return to original front-facing orientation |
+| AC-04 | Drag wheel | Change menu selection with circular movement; no jump at angle wrap boundary |
+| AC-05 | Buttons | MENU, Select, Previous, Next, Play/Pause work correctly |
+| AC-06 | Gesture isolation | Ring drag does not rotate device; housing drag does not change volume |
+| AC-07 | Playlist | Show songs from the specified Music.app playlist on the device |
+| AC-08 | Play | Center selection results in the corresponding song playing audibly through Mac |
+| AC-09 | Playback controls | Play/Pause/Next/Previous/volume affect Music.app |
+| AC-10 | External changes | Music.app changes are reflected in NanoDesk title/state |
+| AC-11 | Queue | Playback does not unexpectedly transition to unrelated songs outside chosen playlist |
+| AC-12 | Denied permissions | App does not crash; model remains visible; recovery guidance shown |
+| AC-13 | Persistence | Restore placement, scale, and selected playlist after relaunch |
+| AC-14 | Menu bar | Show/Hide, Always on Top, Quit work |
+| AC-15 | Robustness | No crash when Music.app is closed, playlist empty, or names contain Japanese/emoji |
+| AC-16 | Deliverables | Buildable project, editable 3D master, and USDZ available |
+| AC-17 | Camera launch | Device screen shows the Mac camera feed; no extra main window |
+| AC-18 | Recording | Center button starts/stops; red REC and elapsed time visible |
+| AC-19 | File output | Locally saved 640x480 4:3 H.264 video with AAC audio when permitted, target 30 fps; metadata checked |
+| AC-20 | Camera Roll | Select and play recorded movies within the device screen |
+| AC-21 | Capture failures | Denied access, no camera, low storage, unwritable folder show actionable errors, no crash |
+| AC-22 | Quit/hide during capture | Finalize safely and report any save failure |
+| AC-23 | Scope | No still-photo shutter or photo-file feature |
 
-### 15.1 手動確認の最小シナリオ
-- MacのMusic.appでダウンロード済みの購入曲3曲以上を用意し、テスト用プレイリストに追加。
-- Music.appを開いた状態と閉じた状態で接続・再生を確認。
-- 3Dモデルを裏面に向け、表に戻し、ホイールで2段以上メニュー操作。
-- 曲を再生して一時停止、曲送り、Music.app側で別曲へ変更。
-- アプリを終了・再起動し、表示位置とライブラリ選択が維持されているか確認。
-- Automation権限を未付与／拒否したケースも確認。
-- カメラ／マイク権限を許可したMacで、中央ボタンから5〜10秒録画。保存ファイルの映像640×480、コーデック、音声、フレームレートを検査する。
-- 3D筐体を回しながら録画しても内容が崩れず、録画停止→Camera Roll→再生できることを確認する。
-- カメラ拒否／マイク拒否／保存先書込不可で適切なエラーが表示されるか確認する。
+### 15.1 Minimum manual test walkthrough
 
-## 16. 主要技術リスクと判断ルール
+- Prepare at least three downloaded purchased songs in a test playlist in Music.app.
+- Test connection and playback while Music.app is open and after it has been quit.
+- Rotate fully to back and return; navigate at least two menu levels via the wheel.
+- Start/pause/skip a track, then switch to another track directly in Music.app.
+- Quit/restart NanoDesk and confirm saved location and playlist.
+- Test an ungranted or denied Automation permission.
+- On a Mac with camera/mic permission, record 5–10 seconds and inspect size, codec, audio, and frame rate of the result.
+- Rotate the 3D housing during recording; stop, open Camera Roll, and play the recording.
+- Exercise camera denied, mic denied, and unwritable output-folder failures.
 
-| リスク | 重要度 | 最初の確認方法 | 代替・判断 |
+## 16. Engineering Risks and Decision Rules
+
+| Risk | Severity | First experiment | Fallback/decision |
 |---|---|---|---|
-| RealityKitの描画面が透明NSWindow上で期待どおり合成されない | 高 | Phase 0で背景を透過した最小立方体を実機表示 | 別のmacOS描画手段（Metalベースなど）を検討。根拠なく作り替えず比較結果を記録 |
-| 動的なiPod画面と3D回転の同期が不安定 | 高 | スクリーンにテキストを貼り回転させるスパイク | SwiftUI attachmentとテクスチャ方式を比較 |
-| ホイールの3D当たり判定と回転操作が競合する | 高 | 複数コリジョン領域と入力優先順位で検証 | 明示的な修飾キーや操作モードをフォールバックにする |
-| Music.appのAppleScript操作がOSバージョンや許可条件で制限される | 高 | 許可→列挙→再生→状態取得を個別検証 | 不可能な操作は限定仕様を提示し、動作確認なしの完成扱いにしない |
-| 曲再生後の次曲が選択プレイリスト外になる | 高 | 3曲のプレイリストで連続再生検証 | 再生キューの設計・再生対象管理を見直す |
-| 購入曲／サブスク曲の自動判別が不正確 | 中 | Music.app辞書・実ライブラリのメタデータを調査 | P0はユーザー指定プレイリストで運用 |
-| 透明領域のクリックが背後アプリを妨げる | 中 | 透過ウィンドウのマウス挙動を実機検証 | メニューバーでクリック透過モードを提供し、範囲限定透過はP1 |
-| 3Dモデル制作の品質が不十分 | 中 | 正面・斜め45°・背面の比較スクリーンショット | Blender原本を残し、部品単位で修正 |
-| 内蔵カメラ→VGA/30fpsの出力形式・3D画面内プレビューの負荷 | 高 | AVFoundation最小試作と録画メタデータ検証 | フレーム変換／AVAssetWriter採用、負荷の見直し、実機制約を明示 |
-| macOSのカメラ／マイク権限、サンドボックス保存先 | 高 | 権限拒否・サンドボックス・保存先実機検証 | 保存パネル／security-scoped bookmark等を使用 |
-| Codex CloudにはMac標準のGUI、Music.app、内蔵カメラがない | 高 | Cloudでの環境検査＋Mac上でのXcode検証 | Cloudはソース・Mock・ロジック中心、ローカルMacで統合・ビルド・E2E検証 |
+| RealityKit scene does not blend transparently in NSWindow | High | Display simplest transparent cuboid on Mac | Compare alternative macOS renderers, including Metal; document evidence before switching |
+| Screen text/preview does not track 3D rotation reliably | High | Rotate a textured/attached 3D screen | Compare SwiftUI attachments vs dynamic textures |
+| Wheel hit tests conflict with body rotation | High | Test separate collision regions and gesture priority | Provide modifier key or explicit mode |
+| Music.app scripting differs by OS/permissions | High | Individually verify authorize, list, play, status | Document supported subset; never claim untested integration |
+| Queue escapes the selected playlist | High | Continuous three-track playlist test | Revise playback queue/target selection |
+| Purchased vs subscription metadata is unreliable | Medium | Inspect Music.app scripting dictionary and real tracks | P0 uses user-selected playlist |
+| Transparent host blocks background clicks | Medium | Test mouse behavior on physical Mac | Full click-through toggle; per-pixel passthrough P1 |
+| 3D visual quality is insufficient | Medium | Compare front, 45-degree, and rear renders | Keep editable Blender original; iterate per part |
+| Camera cannot maintain VGA/30 fps or 3D preview is costly | High | AVFoundation prototype and metadata test | Explicit frame conversion/AVAssetWriter; optimize and document limits |
+| Camera/mic privacy and sandbox folder access fail | High | Test denials, sandbox, filesystem access | Save dialog/security-scoped bookmark |
+| Codex Cloud has no native Mac GUI, Music.app, or camera | High | Inspect Cloud environment; test with Xcode on Mac | Cloud handles code/mocks; local Mac handles build and integration verification |
 
-## 17. Codexに渡す実装指示（コピーして開始）
+## 17. Starting Prompt for Codex
 
-> あなたはmacOSネイティブアプリ開発を担当するエンジニアです。添付の`docs/SPEC.md`を仕様の正とし、iPod nano 第5世代の3Dデスクトップ音楽プレーヤー「NanoDesk」を実装してください。
+> You are building a native macOS application. Treat **docs/SPEC.md as the authoritative specification** for NanoDesk, a floating 3D fifth-generation iPod nano for the Mac desktop.
 >
-> **重要：** 単なるアプリウィンドウ内の3DビューやWebプレーヤーを作らないでください。背景透明・枠なしのmacOSウィンドウに、3DのiPod本体だけが浮いて見えるアプリが最終目的です。MacのMusic.appのライブラリ内でユーザーが指定した購入曲用プレイリストを再生対象とし、音声はMusic.appで鳴らします。
+> **Do not** substitute a normal app window displaying an iPod, a webpage, or a web-based player. The result must appear as **only the 3D device** in a transparent, borderless macOS window. Music.app is responsible for audio playback; the app controls a playlist selected by the user, usually containing purchased iTunes Store songs.
 >
-> 最初に**Phase 0の技術検証**だけを行ってください。特に(1)透明ウィンドウでのRealityKit 3D描画、(2)3D入力のヒットテスト、(3)Music.appのAutomation権限・プレイリスト取得・実際の再生制御、(4)3D面への動的画面表示、(5)AVFoundationでのMacカメラ／マイク利用とVGA動画録画を検証してください。検証できたこと・できなかったことを`docs/RISKS_AND_FINDINGS.md`に書き、技術選択の理由を示してください。
+> **Start with Phase 0 technical spikes only.** Investigate: (1) transparent macOS rendering of RealityKit 3D content; (2) 3D hit testing; (3) Music.app Automation permission, playlist discovery and real playback commands; (4) a dynamic display on a rotating 3D surface; (5) AVFoundation camera and microphone capture with VGA video output. Record what is verified, unverified, and blocked, with design rationale, in docs/RISKS_AND_FINDINGS.md.
 >
-> 必ず検証できた範囲でビルド可能な小さい単位で実装し、機能ごとにテストを追加してください。AppleScriptは連携レイヤーに閉じ込め、Music.appとカメラのMockを利用できるようにしてください。DRM解除や非公開APIの利用はしません。
+> Implement in small, buildable units where possible; write tests for individual behaviors. Isolate AppleScript in a bridge and provide Music.app/camera mocks. Do not circumvent DRM or use undocumented APIs.
 >
-> **追加必須要件**：iPod nano第5世代の`Video Camera`を実装します。Mac内蔵フロントカメラから本体の3Dスクリーンにプレビューを表示し、中央ボタンで録画開始／停止、640×480・30fps目標、H.264＋AACで保存し、`Camera Roll`で再生できること。静止画撮影は**作らない**。Phase 3.5は必須です。
+> **Required later feature:** Re-create the actual fifth-generation **Video Camera**: Mac front-camera preview on the device's 3D screen, center-button start/stop, 640x480 target 30 fps H.264/AAC output, and Camera Roll playback. **Do not build still photography.** Phase 3.5 is mandatory.
 >
-> Phase 0が完了したら、次のPhaseへ進むための変更点一覧・テスト結果・既知リスクを報告してください。ユーザーが明示的に継続を指示する場合は本仕様のPhase順で実装してください。実機やXcodeがない環境では**実機確認済みと主張せず**、未確認事項とローカル実行コマンドを報告してください。
+> Once Phase 0 work is done, report changes, tests, known risks, and prerequisites for the next phase. Continue to later phases only when explicitly requested. If Xcode or a physical Mac is absent, **do not claim hardware validation**; provide the outstanding checks and the commands/steps required on macOS.
 
-## 17A. Codex CloudとローカルMacの開発分担（必須）
+## 17A. Codex Cloud vs Local Mac: Division of Work
 
-- **Codex Cloudで進める範囲**：設計／Swiftソース作成／モック／純粋な状態遷移・アルゴリズムのテスト／生成可能な3Dモデルソース／README／CI設定／PR作成。GitHubを開発の正とする。
-- **ローカルMacで必須の範囲**：Xcode/macOS SDKでのネイティブビルド、アプリ起動、透明フローティングウィンドウ・RealityKit・Music.appのApple Events権限・内蔵カメラ／マイク録画・音声再生・出力動画の実測検証。
-- 標準のCodex Cloud環境がmacOSのXcodeやMacのデバイスにアクセスできるとは仮定しない。**CloudでSwiftファイルを書けても、macOS用アプリがビルド・実機動作すると保証できない**。
-- `docs/RISKS_AND_FINDINGS.md`では環境ごとに`CLOUD_IMPLEMENTED`／`CLOUD_TESTED`／`LOCAL_MAC_VERIFIED`／`BLOCKED_LOCAL_MAC`を区別する。実機未確認項目を完成扱いしない。
-- Mac上で問題が出たらXcodeエラー／コンソールログ／短い再現手順をCodexへ戻し修正する。MacのCodexアプリ／CLI／IDE拡張を併用してよい。
-- すべてのフェーズでクラウドのみの作業成果と、実Macによる最終受け入れの結果を別々に記録する。**「Codex Cloud上だけで完成まで完結」は本プロジェクトの前提にしない**。
+- **Codex Cloud:** Architecture, Swift source, mocks, testable pure state machines and algorithms, generative model source, README, CI configuration, PRs. GitHub is the source of truth.
+- **Local Mac:** Xcode/macOS SDK builds; actual launch; transparent window/RealityKit; Music.app Apple Events permissions and audio playback; camera/microphone capture; measured output media metadata.
+- Do not assume a standard Codex Cloud environment can access Xcode, a macOS GUI, or the Mac's physical devices. Writing Swift source in Cloud **does not prove the .app builds or works on macOS**.
+- Mark evidence separately in docs/RISKS_AND_FINDINGS.md: **CLOUD_IMPLEMENTED**, **CLOUD_TESTED**, **LOCAL_MAC_VERIFIED**, or **BLOCKED_LOCAL_MAC**.
+- Feed Xcode errors, console logs, and minimal reproduction steps from the Mac back to Codex for fixes. Codex desktop/CLI/IDE may help locally.
+- Track Cloud results separately from physical acceptance tests in every phase. This project **cannot be certified complete solely through Codex Cloud**.
 
-## 18. 参考資料・仕様確認先
+## 18. References
 
-- Apple：iPodモデルの識別（第5世代 A1320、クリックホイール、背面カメラ）：https://support.apple.com/ja-jp/103823
-- Apple：iPod nano第5世代 公式資料：https://support.apple.com/ja-jp/docs/ipod/132643
-- Apple：iPod nano第5世代 ユーザーズガイド（第5章 `Using the Video Camera`、実機の録画／Camera Roll操作、H.264/AAC 30fps）：https://cdsassets.apple.com/live/6GJYWVAV/user/ma1194_ipod_nano_5th_gen_userguide.pdf
-- Apple：2009年9月のVideo Camera搭載発表（640×480、H.264 1.5Mbps等）：https://www.apple.com/jp/newsroom/2009/09/09Apple-Introduces-New-iPod-nano-With-Built-in-Video-Camera/
-- Apple：MacでiTunes Store購入済み音楽を再ダウンロード：https://support.apple.com/ja-jp/120552
-- Apple：Mac版Music.appで購入音源を利用：https://support.apple.com/ja-jp/guide/music/mus3e2346c2/mac
-- Apple：RealityKit／RealityView：https://developer.apple.com/documentation/realitykit/realityview/
-- Apple：SceneKit非推奨とRealityKitへの移行：https://developer.apple.com/documentation/realitykit/bringing-your-scenekit-projects-to-realitykit
-- Apple：NSWindow：https://developer.apple.com/documentation/appkit/nswindow
-- Apple：Automation許可説明キー：https://developer.apple.com/documentation/bundleresources/information-property-list/nsappleeventsusagedescription
-- Apple：macOS Security Entitlements：https://developer.apple.com/documentation/bundleresources/security-entitlements
-- Apple：AVFoundation Capture：https://developer.apple.com/documentation/avfoundation/capture_setup
-- Apple：`NSCameraUsageDescription`／`NSMicrophoneUsageDescription`：https://developer.apple.com/documentation/bundleresources/information-property-list
-- OpenAI：Using Codex Cloud：https://help.openai.com/en/articles/20001545-using-codex-cloud
-- OpenAI：Hosted sandbox（Linuxベース環境について）：https://developers.openai.com/api/docs/guides/agents-api/environments/openai-hosted
+- Apple — Identify your iPod model: https://support.apple.com/en-us/103823
+- Apple — Fifth-generation iPod nano documentation: https://support.apple.com/ja-jp/docs/ipod/132643
+- Apple — Fifth-generation iPod nano User Guide (Chapter 5, Video Camera, H.264/AAC): https://cdsassets.apple.com/live/6GJYWVAV/user/ma1194_ipod_nano_5th_gen_userguide.pdf
+- Apple — 2009 iPod nano announcement (VGA, H.264, approximate bitrate): https://www.apple.com/jp/newsroom/2009/09/09Apple-Introduces-New-iPod-nano-With-Built-in-Video-Camera/
+- Apple — Redownload purchased music: https://support.apple.com/ja-jp/120552
+- Apple — Music.app purchased music: https://support.apple.com/ja-jp/guide/music/mus3e2346c2/mac
+- Apple — RealityView: https://developer.apple.com/documentation/realitykit/realityview/
+- Apple — SceneKit migration: https://developer.apple.com/documentation/realitykit/bringing-your-scenekit-projects-to-realitykit
+- Apple — NSWindow: https://developer.apple.com/documentation/appkit/nswindow
+- Apple — NSAppleEventsUsageDescription: https://developer.apple.com/documentation/bundleresources/information-property-list/nsappleeventsusagedescription
+- Apple — Security entitlements: https://developer.apple.com/documentation/bundleresources/security-entitlements
+- Apple — AVFoundation capture: https://developer.apple.com/documentation/avfoundation/capture_setup
+- Apple — Camera/microphone usage descriptions: https://developer.apple.com/documentation/bundleresources/information-property-list
+- OpenAI — Using Codex Cloud: https://help.openai.com/en/articles/20001545-using-codex-cloud
+- OpenAI — Hosted environments: https://developers.openai.com/api/docs/guides/agents-api/environments/openai-hosted
 
-**備考：** 仕様中の数値（画面サイズ、ドラッグ感度、頻度、動画ビットレートなど）は実装時の初期値・目標値である。AppleScriptの利用可否、UI表示の透過、購入履歴のメタデータ精度、Macカメラの録画形式／権限等は**未実機検証**なので、CodexにはPhase 0で必ず確かめさせる。
+**Note:** Numerical settings such as model size, wheel sensitivity, polling interval, and video bitrate are initial targets and must be validated. Music.app scripting, transparency, purchase metadata, camera recording capabilities, and privacy permissions remain **unverified on physical hardware** until Phase 0 tests demonstrate them.
