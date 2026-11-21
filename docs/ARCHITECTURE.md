@@ -2,7 +2,7 @@
 
 ## App and window
 
-The Xcode app target builds the AppKit entry point and shared Swift interaction code. The Swift package exposes the same interaction code to tests on Linux and macOS. Both are dependency-free. The app target copies the tracked `assets/runtime/NanoModel.usdz` as a bundle resource. The app sandbox entitlement grants local bundle and preference access. The preview has no network clients or privacy usage descriptions.
+The Xcode app target builds the AppKit entry point and shared Swift interaction code. The Swift package exposes the same interaction code to tests on Linux and macOS. Both are dependency-free. The app target copies the tracked `assets/runtime/NanoModel.usdz` as a bundle resource. The app sandbox entitlement grants local bundle and preference access. The app declares an Automation usage description and permits Apple Events to Music.app only. It has no network client.
 
 NanoDesk runs as an accessory app with a status item. `DesktopWindowController` owns a borderless, nonactivating `NSPanel` with clear background and no shadow. A menu toggles the floating level and whole-window mouse pass-through. The status item stays available when the panel ignores mouse events. In interactive mode, the window remains rectangular for event delivery. The model hit test limits gesture starts but cannot send a click to a different app below that window.
 
@@ -22,10 +22,21 @@ The approved visual baseline is [tone_review/front.png](../assets/renders/tone_r
 
 The view sends AppKit pointer events to the window controller. Screen-space yaw and pitch left-multiply the current unit quaternion, so either axis supports a full turn without Euler-angle limits. AppKit points are converted with +Y upward. The model rotates around its bounds center. Drag stops on mouse-up. Reset restores the identity orientation.
 
-For a gesture's initial press, `DeviceScene` constructs a camera ray and transforms it into model coordinates. The CPU hit test uses the imported body's bounds and the front wheel's measured circle. The wheel is reserved when sufficiently front-facing. Shift overrides that reservation for rotation. Option-drag moves the window. The hit test is a coarse gesture router and can later be replaced with finer geometry for the wheel sectors.
+For a gesture's initial press, `DeviceScene` constructs a camera ray and transforms it into model coordinates. The CPU hit test uses the imported body's bounds and the front wheel's measured circle. The wheel is active when sufficiently front-facing. The hit test returns a normalized position on the wheel plane in device coordinates. The center occupies 49% of its radius, and the outer ring is divided into four directional sectors. Dragging the ring unwraps angles and scrolls with 15° steps after a three-point movement threshold. A short press must release in the same sector. Shift forces body rotation and Option-drag moves the window.
 
 ## Asset coordinates for later screen and wheel features
 
 The USDZ uses meters with +Y up and +Z toward the viewer. Its axis-aligned bounds measure 38.7 × 90.7 × 6.2 mm in X, Y and Z. `ScreenSurface` is a separate front-facing curved mesh under `Body`. Its position is approximately X −15.03 to +15.03 mm, Y −6.60 to +40.50 mm, Z +2.18 to +3.10 mm. The face-varying `st` UV spans 0–1 with U increasing left to right and V increasing bottom to top on the front. A texture orientation pattern on the Mac should confirm the importer's vertical convention before display content is attached. The source display aspect is 240 × 376.
 
-`CenterButton` is under `Body`. `MenuButton`, `PreviousButton`, `NextButton` and `PlayPauseButton` are children of `WheelRing`. Its center is about (0, −26.3, +3.09) mm at the front face and its radius is 13.55 mm. The preview reserves the region for future input. Music.app, device navigation and video capture are later phases.
+`CenterButton` is under `Body`. `MenuButton`, `PreviousButton`, `NextButton` and `PlayPauseButton` are children of `WheelRing`. Its center is about (0, −26.3, +3.09) mm at the front face and its radius is 13.55 mm. The front wheel now controls the music flow. Playlists and video capture are later phases.
+
+
+## Japanese music screens and transport
+
+`MusicSession` owns navigation, list selection, errors and playback state. The views are メニュー, ミュージック, 曲 and 再生中. The original navy and cyan interface uses system text, solid blue selection, two-line song rows, and an artwork square above the track information and progress bar. Its layout and styling are distinct from Apple's firmware. The user-supplied source index identifies Apple user-guide images and photographed screens. Those references informed screen size and interaction scope and remain outside the repository.
+
+`MusicScreenRenderer` draws a 240 × 376 sRGB image from state. `DeviceScene` updates a reusable RealityKit texture on the emissive channel of `ScreenSurface` alone. It preserves the imported physically based glass where available and culls back faces. The texture follows the existing UVs and rotates with the mesh. The rendering checks on Mac include vertical orientation, glass readability at an angle and no reverse-side display. The device geometry, housing materials and environment lighting are shared with the prior desktop preview.
+
+`MusicAppBridge` runs fixed AppleScript via macOS `/usr/bin/osascript` on a serial background queue. Track IDs go through arguments rather than script interpolation. It reads track IDs, titles and artists from the library container, checks that the chosen ID is playing, and uses a timed Music snapshot for position, duration and playback state. The app advances manually to adjacent listed songs and stops at the ends. The visible now-playing view polls about once a second while a track is selected. Status polling does not launch Music. Missing or unreadable cover art uses an original note glyph. The bridge stages only optional artwork in the app's temporary directory and removes it after use.
+
+The app's sandbox exception names only `com.apple.Music`. The usage string explains read and playback access. System signing, the Automation prompt and the attribution of the helper process need a Mac check. The app never reads Music's audio paths or ships library data.

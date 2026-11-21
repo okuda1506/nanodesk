@@ -25,11 +25,22 @@ struct DeviceHitTest {
             if near > far { return .outside }
         }
 
+        return wheelPoint(origin: origin, direction: direction, near: near, far: far) == nil ? .housing : .wheel
+    }
+
+    func wheelPoint(origin: SIMD3<Float>, direction: SIMD3<Float>) -> SIMD2<Float>? {
+        guard hit(origin: origin, direction: direction) == .wheel else { return nil }
+        return wheelPoint(origin: origin, direction: direction, near: 0, far: .infinity)
+    }
+
+    private func wheelPoint(origin: SIMD3<Float>, direction: SIMD3<Float>, near: Float, far: Float) -> SIMD2<Float>? {
         let length = sqrt(direction.x * direction.x + direction.y * direction.y + direction.z * direction.z)
-        guard direction.z < -0.45 * length else { return .housing }
+        guard direction.z < -0.45 * length else { return nil }
         let wheelPlane = (wheelCenter.z - origin.z) / direction.z
-        guard wheelPlane >= near, wheelPlane <= far else { return .housing }
+        guard wheelPlane >= near, wheelPlane <= far else { return nil }
         let offset = origin + direction * wheelPlane - wheelCenter
-        return offset.x * offset.x + offset.y * offset.y <= wheelRadius * wheelRadius ? .wheel : .housing
+        guard wheelRadius > 0 else { return nil }
+        let point = SIMD2(offset.x, offset.y) / wheelRadius
+        return point.x * point.x + point.y * point.y <= 1 ? point : nil
     }
 }

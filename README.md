@@ -2,9 +2,9 @@
 
 A native macOS app that brings a **fully rotatable, interactive 3D iPod nano (5th generation)** to your desktop.
 
-The desktop preview displays the approved 3D device in a transparent panel. The planned player will control songs in Apple's Music app with the click wheel and support VGA capture in the **Video Camera** feature.
+The desktop preview presents the approved 3D device in a transparent panel. Its original Japanese menus browse the local Mac's Music library and control playback through the click wheel. VGA capture is a later feature.
 
-> **Project status** · A native desktop preview is available for Mac validation. The [approved silver A1320 model](docs/MODEL_REVIEW.md) supplies its USDZ. See [implementation findings](docs/RISKS_AND_FINDINGS.md) for the checks performed so far.
+> **Project status** · The desktop preview and Japanese music flow are available for Mac validation. The [approved silver A1320 model](docs/MODEL_REVIEW.md) supplies its USDZ. See [implementation findings](docs/RISKS_AND_FINDINGS.md) for the checks performed so far.
 
 ## Run the desktop preview
 
@@ -13,7 +13,9 @@ On an Apple Silicon Mac running macOS 15 or later, install Xcode 16 or later. Op
 | Action | Control |
 |---|---|
 | Rotate in both axes | Drag the housing. Shift-drag anywhere on the device, including the wheel. |
-| Return to the front | Double-click the device or select **Reset Orientation**. |
+| Browse and select | Trace the visible wheel to scroll. Click its center to select and MENU to go back. |
+| Control playback | On 再生中, click the bottom, right or left wheel labels to play/pause or move to an available song. |
+| Return to the front | Double-click the housing or select **Reset Orientation**. |
 | Move | Option-drag the device. |
 | Resize | Command-scroll, pinch, or use **Increase Size** and **Decrease Size**. |
 | Pass clicks to other apps | Enable **Click Through** from the menu bar. Disable it there to interact again. |
@@ -68,7 +70,7 @@ Four locally stored photo references are now available in **[assets/references/p
 
 ## Development Workflow
 
-Use the Cloud Swift toolchain for portable tests and the Mac Xcode toolchain for the app and its desktop appearance. The [architecture notes](docs/ARCHITECTURE.md) explain how the two targets share code and which render is the visual baseline. Follow [the specification](docs/SPEC.md) for the later playback and capture phases.
+Use the Cloud Swift toolchain for portable tests and the Mac Xcode toolchain for the app and its desktop appearance. The [architecture notes](docs/ARCHITECTURE.md) explain how the two targets share code and which render is the visual baseline. Follow [the specification](docs/SPEC.md) for later features such as playlists and video capture.
 
 ### Clone the repository
 
@@ -77,9 +79,11 @@ git clone https://github.com/okuda1506/nanodesk.git
 cd nanodesk
 ~~~
 
-### Music setup (planned)
+### Play a song from Music
 
-For MVP playback, add downloaded, purchased iTunes Store songs to a playlist in **Music.app**, then select that playlist through NanoDesk after granting macOS Automation permission. NanoDesk does not require an Apple Music subscription or access to your Apple Account credentials.
+With a playable track registered in **Music.app**, face the device front and turn off **Click Through**. Click the center button on **ミュージック**, then on **曲**. NanoDesk can open Music when you first browse. Allow **NanoDesk → Music** in the macOS Automation prompt, select the song with the wheel and click center. Music plays the audio and NanoDesk shows **再生中**. The list reads the Music library directly. A playlist and a subscription are unnecessary.
+
+If permission was denied, use System Settings → Privacy & Security → Automation → NanoDesk → Music, then reopen **曲**. If the item is not there, try opening **曲** again from the signed app. Try playing the track in Music itself if playback fails. See [Music QA](docs/QA_CHECKLIST.md#mac-validation-for-the-music-flow) for the live checks.
 
 ### Video setup (planned)
 

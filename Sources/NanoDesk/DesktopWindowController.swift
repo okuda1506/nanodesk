@@ -10,11 +10,17 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     private static let preferenceKey = "NanoDesk.DesktopPlacement.v1"
     private let scene: DeviceScene
     private let canvas: DeviceCanvas
+    private let music = MusicSession(service: MusicAppBridge())
+    private let screen = MusicScreenRenderer()
+    private var playbackPoll: Task<Void, Never>?
+    private var screenUpdate: Task<Void, Never>?
+    private var screenDirty = false
     private var placement: DesktopPlacement
 
     private enum Drag {
         case rotation(lastPoint: CGPoint)
         case move(mouseOrigin: CGPoint, windowOrigin: CGPoint, side: CGFloat)
+        case wheel(start: CGPoint, gesture: ClickWheelGesture)
     }
     private var drag: Drag?
 
@@ -47,6 +53,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         super.init(window: window)
         canvas.input = self
         canvas.onRenderError = onRenderError
+        music.changed = { [weak self] in self?.queueScreenUpdate() }
         NotificationCenter.default.addObserver(
             self, selector: #selector(repositionForScreens),
             name: NSApplication.didChangeScreenParametersNotification, object: nil
@@ -56,6 +63,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
             name: NSWindow.didChangeOcclusionStateNotification, object: window
         )
         applyPlacement()
+        queueScreenUpdate()
     }
 
     @available(*, unavailable)
@@ -69,14 +77,26 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         applyPlacement()
         window?.orderFrontRegardless()
         canvas.requestFrame()
+        if playbackPoll == nil {
+            playbackPoll = Task { [weak self] in
+                while !Task.isCancelled {
+                    try? await Task.sleep(for: .seconds(1))
+                    guard !Task.isCancelled, let music = self?.music else { break }
+                    await music.refreshPlayback()
+                }
+            }
+        }
     }
 
     func hide() {
-        pointerUp()
+        pointerUp(at: nil)
+        playbackPoll?.cancel()
+        playbackPoll = nil
         window?.orderOut(nil)
     }
 
     func resetOrientation() {
+        pointerUp(at: nil)
         scene.resetOrientation()
         canvas.requestFrame()
     }
@@ -97,7 +117,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     }
 
     func toggleClickThrough() {
-        pointerUp()
+        pointerUp(at: nil)
         placement.clickThrough.toggle()
         window?.ignoresMouseEvents = placement.clickThrough
         save()
@@ -116,10 +136,12 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         if event.modifierFlags.contains(.option) {
             drag = .move(mouseOrigin: NSEvent.mouseLocation, windowOrigin: window.frame.origin,
                          side: window.frame.width)
-        } else if event.clickCount == 2 {
+        } else if event.clickCount == 2 && hit == .housing {
             resetOrientation()
         } else if hit == .housing || event.modifierFlags.contains(.shift) {
             drag = .rotation(lastPoint: point)
+        } else if let wheel = scene.wheelPoint(at: point, in: canvas.bounds) {
+            drag = .wheel(start: point, gesture: ClickWheelGesture(start: wheel))
         }
     }
 
@@ -135,14 +157,44 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
                                  y: windowOrigin.y + mouse.y - mouseOrigin.y + side / 2)
             placement.center = center
             applyPlacement(persist: false)
+        case .wheel(let start, var gesture):
+            let offset = scene.wheelPoint(at: point, in: canvas.bounds)
+            let steps = gesture.move(to: offset, distance: hypot(point.x - start.x, point.y - start.y))
+            drag = .wheel(start: start, gesture: gesture)
+            music.scroll(steps: steps)
         case nil:
             break
         }
     }
 
-    func pointerUp() {
+    func pointerUp(at point: CGPoint?) {
+        if case .wheel(let start, let gesture) = drag, let point,
+           let offset = scene.wheelPoint(at: point, in: canvas.bounds),
+           let button = gesture.release(at: offset, distance: hypot(point.x - start.x, point.y - start.y)) {
+            Task { [music] in await music.press(button) }
+        }
         if case .move = drag { save() }
         drag = nil
+    }
+
+    private func queueScreenUpdate() {
+        screenDirty = true
+        guard screenUpdate == nil else { return }
+        screenUpdate = Task { [weak self] in
+            guard let self else { return }
+            defer { screenUpdate = nil }
+            while screenDirty {
+                screenDirty = false
+                do {
+                    guard let image = screen.image(for: music) else { throw DeviceSceneError.screenUnavailable }
+                    try await scene.updateScreen(with: image)
+                    canvas.requestFrame()
+                } catch {
+                    canvas.onRenderError?(error)
+                    return
+                }
+            }
+        }
     }
 
     private func setScale(_ value: Double) {
@@ -151,7 +203,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     }
 
     @objc private func repositionForScreens(_ notification: Notification) {
-        pointerUp()
+        pointerUp(at: nil)
         applyPlacement()
     }
 

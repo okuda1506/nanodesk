@@ -15,3 +15,13 @@ RealityKit may import preview materials or grade highlights differently from Ble
 **LOCAL_MAC_VERIFIED (user report)** · Command plus two-finger scrolling resized the device. Pinch in and out did not. The two inputs share `zoom(by:)`, so resize math alone does not explain the difference. The report does not establish whether the original responder callback `DeviceCanvas.magnify(with:)` was reached.
 
 **CLOUD_IMPLEMENTED** · The canvas attaches an `NSMagnificationGestureRecognizer` and passes incremental scale factors to `zoom(by:)`. It leaves primary mouse events undelayed. The panel retains `.nonactivatingPanel` and `becomesKeyOnlyIfNeeded`, which govern activation and key focus. `acceptsFirstMouse(for:)` applies to mouse presses. It does not establish that a pinch reaches the canvas. The recognizer handles gestures delivered to its view. Event delivery to an inactive panel still needs to be checked on a Mac.
+
+## Music flow
+
+**LOCAL_MAC_VERIFIED (user report, previous build)** · The desktop preview built and ran on MacBook Air M3 under macOS 27.2.1 / Xcode 27.2, with the main desktop operations working. Trackpad pinch remains deferred.
+
+**CLOUD_IMPLEMENTED** · Japanese menus and now-playing graphics are drawn to the existing 240 × 376 screen surface. The appearance is original. Wheel clicks and ring drags route to the Music flow. A background AppleScript bridge controls Music through the Mac's Automation permission.
+
+**CLOUD_TESTED** · Portable Swift tests cover wheel angle direction and seam, press versus drag, front versus rear, bounded menu selection, zero/one/multiple tracks, permission denial, playback failure, artwork state, progress, pause/resume and returning with MENU. These tests use a mock Music service. The Swift bridge is type-checked on Linux. The Xcode project, entitlements and Swift syntax were inspected.
+
+**BLOCKED_LOCAL_MAC** · Native build and launch, Music scripting and Automation from the hardened app, audible playback, artwork decoding, UV orientation, and display readability through glass still require the [Mac music QA](QA_CHECKLIST.md#mac-validation-for-the-music-flow).

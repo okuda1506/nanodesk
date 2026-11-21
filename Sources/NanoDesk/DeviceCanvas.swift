@@ -6,7 +6,7 @@ import QuartzCore
 protocol DeviceInput: AnyObject {
     func pointerDown(_ event: NSEvent, at point: CGPoint)
     func pointerDragged(_ event: NSEvent, to point: CGPoint)
-    func pointerUp()
+    func pointerUp(at point: CGPoint?)
     func zoom(by factor: Double)
 }
 
@@ -115,7 +115,7 @@ final class DeviceCanvas: NSView {
     }
 
     override func mouseUp(with event: NSEvent) {
-        input?.pointerUp()
+        input?.pointerUp(at: convert(event.locationInWindow, from: nil))
     }
 
     override func scrollWheel(with event: NSEvent) {
