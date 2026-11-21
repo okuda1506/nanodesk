@@ -1,5 +1,4 @@
 {
-  "$schema": "https://json-schema.org/draft/2020-12/schema",
   "description": "Verified and drawing-derived iPod nano fifth-generation modeling references for NanoDesk. Unknown dimensions must remain null.",
   "device": {
     "name": "iPod nano (5th generation)",
