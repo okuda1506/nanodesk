@@ -29,6 +29,8 @@ The full product requirements, architecture proposal, development phases, risks,
 
 The photos are embedded from Wikimedia Commons with credit, **not committed as third-party binary files**. Refer to these sources and inspect the original Apple dimensional drawing before attempting a high-fidelity Blender model in Phase 1.
 
+**Codex Cloud photo access:** Some source hosts returned HTTP 403 during modeling. The images are **not yet stored in the repository**. See **[Reference Access Recovery](docs/REFERENCE_ACCESS.md)** for a safe way to attach photographs to a Codex task or download licensed copies on your Mac. **[AGENTS.md](AGENTS.md)** requires the agent to distinguish unverified blockout work from photo-verified modeling.
+
 ## Technology (Planned)
 
 | Area | Technology |
