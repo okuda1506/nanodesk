@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "description": "Verified and drawing-derived iPod nano fifth-generation modeling references for NanoDesk. Unknown dimensions must remain null.",
+  "device": {
+    "name": "iPod nano (5th generation)",
+    "model": "A1320",
+    "introduced": "2009-09"
+  },
+  "units": {
+    "length": "mm",
+    "weight": "g",
+    "display_diagonal": "in",
+    "resolution": "px"
+  },
+  "measured_or_official": {
+    "height_mm": 90.7,
+    "width_mm": 38.7,
+    "depth_mm": 6.2,
+    "weight_g": 36.4,
+    "display_diagonal_in": 2.2,
+    "display_resolution_px": {
+      "width": 240,
+      "height": 376
+    },
+    "display_density_ppi": 204,
+    "video_recording": {
+      "width_px": 640,
+      "height_px": 480,
+      "max_fps": 30,
+      "video_codec": "H.264",
+      "audio_codec": "AAC"
+    }
+  },
+  "engineering_drawing_values_pending_visual_crosscheck": {
+    "click_wheel_outer_diameter_mm": 27.1,
+    "center_button_diameter_mm": 13.2,
+    "status": "Read from the labeled fifth-gen drawing annotation; verify arrows/geometry in section 16.59, Figure 16-64 before setting final mesh dimensions."
+  },
+  "not_yet_verified": {
+    "display_opening_width_mm": null,
+    "display_opening_height_mm": null,
+    "display_center_from_top_mm": null,
+    "wheel_center_from_bottom_mm": null,
+    "camera_center_from_bottom_mm": null,
+    "corner_radius_mm": null,
+    "rear_shell_curvature": null,
+    "hold_switch_position_mm": null
+  },
+  "sources": {
+    "apple_product_spec_pdf_mirror": "https://docs.rs-online.com/03a5/0900766b80d8017c.pdf",
+    "apple_device_drawing_pdf": "https://manuals.plus/m/86b9af196de65a103ec1095ad3421c275dc60bb1cacb7ce71b7ac7bedb7322e7.pdf",
+    "drawing_location": "section 16.59, figure 16-64, printed page 157",
+    "apple_model_identification": "https://support.apple.com/en-us/103823",
+    "photo_index": "https://commons.wikimedia.org/wiki/Category:IPod_nano_(5th_generation)"
+  }
+}
