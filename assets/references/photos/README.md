@@ -1,24 +1,29 @@
 # Local Licensed Photo References
 
-**Current status: This directory does not yet contain the actual source photographs.** External images embedded in `docs/3D_MODEL_REFERENCES.md` may return HTTP 403 in Codex Cloud. A text link alone is not sufficient for high-fidelity modeling.
+These photo files are intended as local reference material for modeling the **iPod nano (5th generation, A1320)** in NanoDesk.
 
-For an accessible, durable reference pack, add image files here **only after verifying each photo's reuse rights**, then update the attribution list. See `docs/REFERENCE_ACCESS.md`.
+## Files
 
-## Approved candidate source photos
+- `nano5_front_back.png` — front and back composite
+- `nano5_front.png` — front view
+- `nano5_back.png` — back view
+- `nano5_camera.png` — rear camera close-up
 
-| Proposed filename | Reference page | Author | License |
-|---|---|---|---|
-| `nano5_front_back.png` | [Front + Back](https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-front-back.png) | Lubyanka | CC BY-SA 3.0 |
-| `nano5_front.png` | [Front](https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-front.png) | Lubyanka | CC BY-SA 3.0 |
-| `nano5_back.png` | [Back](https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-back.png) | Lubyanka | CC BY-SA 3.0 |
-| `nano5_camera.png` | [Rear camera](https://commons.wikimedia.org/wiki/File:IPod-nano-5G-camera-view-1.png) | Lubyanka | CC BY-SA 3.0 |
+## Source / attribution
 
-License text: [Creative Commons Attribution-ShareAlike 3.0 Unported](https://creativecommons.org/licenses/by-sa/3.0/).
+All four reference images were provided by the user for inclusion in the project and correspond to the following Wikimedia Commons sources:
 
-Photos listed above were created by Lubyanka in October 2009. Preserve the Commons file-page source URL, copyright credit, and license when using or redistributing them. If images are resized or altered, record that modification and honor share-alike terms. Apple trademarks/product design visible in the photographs are separate issues from photo copyright.
+- Front + back: https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-front-back.png
+- Front: https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-front.png
+- Back: https://commons.wikimedia.org/wiki/File:IPod-Nano-5G-back.png
+- Rear camera detail: https://commons.wikimedia.org/wiki/File:IPod-nano-5G-camera-view-1.png
 
-**The above names are proposed local filenames, not links to existing image assets.** Do not assert that an image is present until you have opened the committed file.
+Creator: **Lubyanka**  
+License: **CC BY-SA 3.0**  
+License URL: https://creativecommons.org/licenses/by-sa/3.0/
 
-## Excluded assets
+Keep attribution and share-alike obligations when redistributing or modifying these images.
 
-Do not upload Apple-authored engineering drawings or official product photos to the public repository unless redistribution rights have been established. Instead, use source URLs and a private, user-provided reference copy in the Codex task.
+## Usage note
+
+These images are reference material for 3D modeling only. They are not meant to be shipped as runtime UI assets.
