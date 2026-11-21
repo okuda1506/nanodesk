@@ -27,9 +27,9 @@ The full product requirements, architecture proposal, development phases, risks,
 - **[Photo reference gallery and mechanical modeling guide](docs/3D_MODEL_REFERENCES.md)** — front, back, click wheel, rear camera, top/bottom references, photo attribution and licenses, plus source engineering drawing.
 - **[Machine-readable physical dimensions](assets/references/ipod_nano_5g_dimensions.json)** — Apple-published size, display, weight, and camera output; wheel dimensions from the engineering drawing are marked for validation.
 
-The photos are embedded from Wikimedia Commons with credit, **not committed as third-party binary files**. Refer to these sources and inspect the original Apple dimensional drawing before attempting a high-fidelity Blender model in Phase 1.
+Four locally stored photo references are now available in **[assets/references/photos/](assets/references/photos/)** with author/source/license attribution. Use these files first when building the Blender model, and inspect the original Apple dimensional drawing before claiming drawing-verified feature measurements.
 
-**Codex Cloud photo access:** Some source hosts returned HTTP 403 during modeling. The images are **not yet stored in the repository**. See **[Reference Access Recovery](docs/REFERENCE_ACCESS.md)** for a safe way to attach photographs to a Codex task or download licensed copies on your Mac. **[AGENTS.md](AGENTS.md)** requires the agent to distinguish unverified blockout work from photo-verified modeling.
+**Codex Cloud photo access:** External photo/drawing hosts previously returned HTTP 403. **The four photographs are now committed locally**, so Codex should open them directly from the repository rather than fetch remote links. The Apple-authored Figure 16-64 drawing is **not stored locally** and still requires separate inspection. See [Reference Access Recovery](docs/REFERENCE_ACCESS.md) and [AGENTS.md](AGENTS.md).
 
 ## Technology (Planned)
 
