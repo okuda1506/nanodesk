@@ -1,0 +1,46 @@
+# macOS / Finder
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Xcode / IDE / SwiftPM
+DerivedData/
+.build/
+.swiftpm/
+xcuserdata/
+*.xcuserstate
+*.xccheckout
+*.xcscmblueprint
+*.hmap
+*.ipa
+*.dSYM/
+*.dSYM.zip
+
+# Environment variables and credentials (never commit real values)
+.env
+.env.*
+!.env.example
+*.pem
+*.p12
+*.p8
+*.key
+*.mobileprovision
+*.cer
+
+# Local private captures and media
+*.m4a
+*.mp3
+*.m4p
+*.aac
+*.mp4
+*.mov
+
+# Generated/cached Blender files; do not ignore canonical .blend models
+*.blend1
+*.blend2
+*.blend@
+*.blend~ 
+__pycache__/
+*.py[cod]
+.cache/
+.tmp/
