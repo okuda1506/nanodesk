@@ -1,29 +1,26 @@
 # NanoDesk
 
-A native macOS app that brings a **fully rotatable, interactive 3D iPod nano (5th generation)** to your desktop.
+NanoDeskは、iPod nano 第5世代の3DモデルをMacのデスクトップに表示するmacOSアプリです。透明なウィンドウ上に本体が浮かび、クリックホイールでMusic.appの曲を操作できます。Macのカメラを使った動画撮影にも対応しています。
 
-The desktop preview presents the approved 3D device in a transparent panel. Its original Japanese menus browse the local Mac's Music library and control playback through the click wheel. The video camera records movies from the Mac camera.
+## 動作環境と起動
 
-> **Project status** · The desktop preview and Japanese music flow are available for Mac validation. The [approved silver A1320 model](docs/MODEL_REVIEW.md) supplies its USDZ. See [implementation findings](docs/RISKS_AND_FINDINGS.md) for the checks performed so far.
+- Apple Silicon搭載Mac
+- macOS 15以降
+- Xcode 16以降
+- 音楽再生にはMusic.appのライブラリ
+- 動画撮影にはMacのカメラ。音声の録音にはマイクが必要です
 
-## Run the desktop preview
+リポジトリを取得し、Xcodeで起動します。
 
-On an Apple Silicon Mac running macOS 15 or later, install Xcode 16 or later. Open `NanoDesk.xcodeproj`, select the **NanoDesk** scheme and **My Mac**, and press **Command-R**. The target uses **Sign to Run Locally**. Use the **NanoDesk** menu-bar item to show or hide the device, reset it, toggle window behavior, or quit.
+```bash
+git clone https://github.com/okuda1506/nanodesk.git
+cd nanodesk
+open NanoDesk.xcodeproj
+```
 
-| Action | Control |
-|---|---|
-| Rotate in both axes | Drag the housing. Shift-drag anywhere on the device, including the wheel. |
-| Open Cover Flow | From Home, a Music menu or Now Playing, twist two fingers over the device or Command-drag it sideways until it is horizontal. Both directions work. You can also select **ミュージック → Cover Flow**. |
-| Browse albums | Trace the wheel to move through the sleeves. Turn quickly to scan artist initials, then lift or pause to resume album browsing. Press center for the album’s tracks, then center on a track to play. Turn upright to return. |
-| Browse and select | Trace the visible wheel to scroll. Click its center to select and MENU to go back. |
-| Control playback | On any screen, click the bottom of the wheel to play/pause, the right to skip to the next song, or the left for the previous song. The menu and its highlight stay in place. |
-| Hold switch | Drag the housing downward to see the top edge. Click the slider to lock the wheel and motion-triggered Cover Flow changes. The orange strip marks Hold. Click it again to unlock. Playback continues. |
-| Return to the front | Double-click the housing or select **Reset Orientation**. |
-| Move | Option-drag the device. |
-| Resize | Command-scroll, pinch, or use **Increase Size** and **Decrease Size**. |
-| Pass clicks to other apps | Enable **Click Through** from the menu bar. Disable it there to interact again. |
+Xcodeで **NanoDesk** スキームと **My Mac** を選び、⌘Rで実行します。起動後はメニューバーの **NanoDesk** から表示や終了を操作できます。
 
-For a command-line build on the Mac from the checkout root:
+コマンドラインからビルドする場合は、リポジトリのルートで次を実行します。
 
 ```bash
 xcodebuild -project NanoDesk.xcodeproj -scheme NanoDesk -configuration Debug \
@@ -31,79 +28,54 @@ xcodebuild -project NanoDesk.xcodeproj -scheme NanoDesk -configuration Debug \
 open .build/xcode/Build/Products/Debug/NanoDesk.app
 ```
 
-`swift test` runs the shared rotation, hit-test, and placement tests on macOS or Linux. Use the [Mac QA checklist](docs/QA_CHECKLIST.md) to check window transparency and compare RealityKit with the approved renders.
+## 本体の操作
 
-## Planned Features
-
-- Realistic, freely rotatable 3D iPod nano with front, sides, and back
-- Transparent, borderless floating desktop presentation
-- Functional click wheel, MENU, Select, Previous, Next, and Play/Pause controls
-- Browsing and playback of a user-selected Music.app playlist, including purchased iTunes Store tracks
-- Now Playing information and volume control
-- **Video Camera:** Preview from the Mac camera inside the device screen, record target **640 × 480 at 30 fps** with H.264/AAC, and browse recordings in Camera Roll
-- Local settings persistence, menu-bar controls, and appropriate macOS privacy permissions
-
-**Not planned for the MVP:** Still-photo capture, DRM removal, streaming-service duplication, or syncing a physical iPod.
-
-## Specification
-
-The full product requirements, architecture proposal, development phases, risks, and acceptance criteria are documented in **[docs/SPEC.md](docs/SPEC.md)**. This file is the source of truth for Codex.
-
-## 3D Modeling References
-
-- **[Photo reference gallery and mechanical modeling guide](docs/3D_MODEL_REFERENCES.md)** — front, back, click wheel, rear camera, top/bottom references, photo attribution and licenses, plus source engineering drawing.
-- **[Machine-readable physical dimensions](assets/references/ipod_nano_5g_dimensions.json)** — Apple-published size, display, weight, and camera output; wheel dimensions from the engineering drawing are marked for validation.
-
-Four locally stored photo references are now available in **[assets/references/photos/](assets/references/photos/)** with author/source/license attribution. Use these files first when building the Blender model, and inspect the original Apple dimensional drawing before claiming drawing-verified feature measurements.
-
-**Codex Cloud photo access:** External photo/drawing hosts previously returned HTTP 403. **The four photographs are now committed locally**, so Codex should open them directly from the repository rather than fetch remote links. The Apple-authored Figure 16-64 drawing is **not stored locally** and still requires separate inspection. See [Reference Access Recovery](docs/REFERENCE_ACCESS.md) and [AGENTS.md](AGENTS.md).
-
-## Technology (Planned)
-
-| Area | Technology |
+| 操作 | 方法 |
 |---|---|
-| macOS application | Swift 6, AppKit |
-| 3D rendering | RealityKit `RealityRenderer` and a transparent Metal layer |
-| 3D source assets | Blender → USDZ |
-| Music integration | Apple Events / AppleScript → Music.app |
-| Camera and recording | AVFoundation |
-| Tests | Swift Testing for portable logic, plus Mac desktop QA |
+| 本体を回転 | 筐体をドラッグ。ホイール上ではShiftキーを押しながらドラッグ |
+| 本体を移動 | Optionキーを押しながらドラッグ |
+| 拡大・縮小 | ピンチ、またはCommandキーを押しながらスクロール |
+| 正面に戻す | 筐体をダブルクリック、またはメニューバーで **Reset Orientation** |
+| 項目を選ぶ | ホイールの円周をなぞって移動し、中央をクリック |
+| 前の画面に戻る | ホイールの **MENU** をクリック |
+| ホールド | 本体を傾けて上面を表示し、スイッチをクリック。オレンジ色が見えるとホールド中 |
 
-**Target device:** Apple Silicon Mac, primarily MacBook Air M3. The specification initially targets macOS 15+, subject to API and Xcode verification.
+ホールド中はクリックホイールと回転によるCover Flowの切り替えが無効になり、再生中の音楽は続きます。もう一度スイッチをクリックすると解除できます。
 
-## Development Workflow
+メニューバーでは、表示・非表示、位置・サイズのリセット、最前面表示、**Click Through** の切り替えもできます。Click Through中は本体を通して下のアプリにクリックが届きます。再び本体を操作するにはメニューバーから解除します。位置、サイズ、最前面表示、Click Throughの設定は保存されます。
 
-Use the Cloud Swift toolchain for portable tests and the Mac Xcode toolchain for the app and its desktop appearance. The [architecture notes](docs/ARCHITECTURE.md) explain how the two targets share code and which render is the visual baseline. Follow [the specification](docs/SPEC.md) for later features such as playlists.
+## 音楽を聴く
 
-### Clone the repository
+1. 本体の **ミュージック → 曲** を選びます。初回はNanoDeskからMusic.appへのオートメーションを許可します。
+2. ホイールで曲を選び、中央をクリックするとMusic.appで再生し、本体に再生画面が表示されます。
+3. 音楽画面ではホイール下部で再生・一時停止、右で次の曲、左で前の曲を操作できます。曲一覧で再生中の曲を選ぶと、再生位置を保ったまま再生画面へ移動します。
 
-~~~bash
-git clone https://github.com/okuda1506/nanodesk.git
-cd nanodesk
-~~~
+再生画面には曲名、アーティスト、アルバム、アートワーク、再生位置が表示されます。Music.appで曲を変更したときも再生情報に反映されます。
 
-### Play a song from Music
+オートメーションを拒否した場合は、macOSの **システム設定 → プライバシーとセキュリティ → オートメーション** でNanoDeskからMusicへのアクセスを許可してください。
 
-With a playable track registered in **Music.app**, face the device front and turn off **Click Through**. Click the center button on **ミュージック**, then on **曲**. NanoDesk can open Music when you first browse. Allow **NanoDesk → Music** in the macOS Automation prompt, select the song with the wheel and click center. Music plays the audio and NanoDesk shows **再生中**. The list reads the Music library directly. A playlist and a subscription are unnecessary.
+## Cover Flow
 
-If permission was denied, use System Settings → Privacy & Security → Automation → NanoDesk → Music, then press center again on **曲** to retry. If the item is not there, try opening **曲** again from the signed app. If the display shows an error code, record the number and the operation that produced it. Try playing the track in Music itself if playback fails. See [Music QA](docs/QA_CHECKLIST.md#mac-validation-for-the-music-flow) for the live checks.
+メインメニュー、ミュージックメニュー、曲一覧、再生画面で、本体を左右いずれかに横倒しにするとCover Flowが開きます。トラックパッド上で2本指をひねるか、Commandキーを押しながら本体を左右にドラッグします。**ミュージック → Cover Flow** からも開けます。
 
-### Record video
+ホイールでアルバムを送り、中央をクリックすると曲一覧を表示します。曲を選んでもう一度中央をクリックすると再生します。ホイールを素早く回すとアーティストの頭文字で移動でき、指を離すか少し止めるとアルバム単位の移動に戻ります。記号・数字で始まるアーティストは `Z` の後の `#` に表示されます。本体を縦に戻すと元の画面へ戻ります。
 
-Select **ビデオカメラ** on the home wheel and press center. Allow camera access in macOS. The LCD opens its iris after the first frame arrives. Allow microphone access for sound, or record with **音声なし** shown. Press center once to record and again to save. MENU returns home and finalizes an active recording. The red dot and timer mark recording.
+## ビデオカメラ
 
-NanoDesk writes H.264 MP4 files to the Movies directory under **NanoDesk/Camera Roll/**. Recordings target 640 × 480 with AAC when a microphone is available. Capture requests 30 fps when supported. Both the viewfinder and recording use the same VGA frame with softer fine color detail, a gentle highlight roll-off and grain that increases in shadows. The portrait LCD shows a mirrored center crop of the camera feed. Saved video uses the landscape frame with mirroring off. Use **Open Camera Roll in Finder** in the NanoDesk menu to open the save folder.
+1. メインメニューで **ビデオカメラ** を選び、中央をクリックします。初回はカメラへのアクセスを許可します。音声を録音する場合はマイクへのアクセスも許可します。
+2. カメラ映像の準備ができると、液晶内の絞りが開いてライブプレビューになります。
+3. 中央をクリックすると録画が始まり、赤い点と経過時間が表示されます。もう一度中央をクリックすると録画を停止して保存します。**MENU** でメインメニューに戻れます。
 
-The default iris opening takes 0.8 seconds after a frame is ready. To tune it on a Mac, run `defaults write io.github.okuda1506.nanodesk CameraIrisDuration -float 1.2` and relaunch NanoDesk.
+録画は **640×480、H.264のMP4** で保存され、30fpsを目標にします。マイクが使用可能な場合はAAC音声が入ります。マイクを許可しない場合は **音声なし** と表示され、音声なしで撮影できます。録画中にMENUで戻る、アプリを非表示にする、または終了すると、録画を確定してカメラを解放します。
 
-## Installation (After Development)
+ライブプレビューと保存動画には、細かい色のにじみ、控えめなハイライト、暗部の粒状感を加えています。プレビューは左右反転した縦長の中央部分を表示し、保存動画は反転しない横長の映像です。
 
-The finished product is intended to be built as a regular **NanoDesk.app** using Xcode. For personal use, the built app can be placed in **/Applications** and opened from Finder, Spotlight, or the Dock. Public distribution, code signing, notarization, and intellectual-property review are separate concerns.
+動画はMacの「ムービー」フォルダ内の **NanoDesk/Camera Roll/** に保存されます。メニューバーの **Open Camera Roll in Finder** から開けます。カメラとマイクのアクセス権は、macOSの **システム設定 → プライバシーとセキュリティ** で変更できます。
 
-## Project Boundaries and IP
+## テスト
 
-This is a personal, unofficial fan-inspired project, **not affiliated with or endorsed by Apple**. Do not commit purchased music files, credentials, unlicensed 3D assets, Apple firmware, or proprietary UI assets. Reproduction or redistribution of Apple trademarks and device designs may require additional rights review.
+リポジトリのルートで `swift test` を実行すると、回転、ホイール、画面遷移、カメラの状態と画質処理などを確認できます。
 
-## License
+## ライセンス
 
-No open-source license has been selected. Public repository visibility alone does not grant permission to reuse or redistribute the source.
+オープンソースライセンスは設定されていません。リポジトリが公開されていること自体は、ソースの再利用や再配布の許可を意味しません。
