@@ -5,6 +5,7 @@ import Testing
 private actor MockMusic: MusicService {
     let library: [MusicTrack]
     var issue: MusicIssue?
+    var snapshotIssue: MusicIssue?
     var current: MusicPlayback?
     var plays: [String] = []
     private(set) var libraryRequests = 0
@@ -34,7 +35,12 @@ private actor MockMusic: MusicService {
         return next
     }
 
-    func snapshot() async throws -> MusicPlayback? { current }
+    func snapshot() async throws -> MusicPlayback? {
+        if let snapshotIssue { throw snapshotIssue }
+        return current
+    }
+
+    func failSnapshot() { snapshotIssue = .timedOut }
 
     func togglePlayback() async throws -> MusicPlayback? {
         guard let current else { return nil }
@@ -151,6 +157,33 @@ struct MusicInteractionTests {
         await session.press(.previous)
         #expect(session.playback?.track == first)
         #expect(await service.plays == ["A", "B", "B", "A"])
+    }
+
+    @Test func songListTracksMusicIndependentlyOfTheWheelSelection() async throws {
+        let service = MockMusic([first, second], cover: Data([1]))
+        _ = try await service.play(second.id)
+        let session = MusicSession(service: service)
+        await openSongs(in: session)
+        #expect(session.selection == 0 && session.playingTrackNumber == 2)
+        #expect(session.playback?.isPlaying == true && session.artwork == nil)
+
+        var redraws = 0
+        session.changed = { redraws += 1 }
+        await service.advance(to: 12)
+        await session.refreshPlayback()
+        #expect(redraws == 0)
+        _ = try await service.togglePlayback()
+        await session.refreshPlayback()
+        #expect(session.playback?.isPlaying == false && redraws == 1)
+        _ = try await service.play(first.id)
+        await session.refreshPlayback()
+        session.scroll(steps: 1)
+        #expect(session.selection == 1 && session.playingTrackNumber == 1)
+        await service.failSnapshot()
+        await session.refreshPlayback()
+        #expect(session.playback == nil && session.tracks == [first, second] && session.notice == nil)
+        await session.press(.select)
+        #expect(session.page == .playing && session.playback?.track == second)
     }
 
     @Test func emptyAndDeniedLibraryReportAReason() async {

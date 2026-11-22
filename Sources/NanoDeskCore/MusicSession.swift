@@ -95,7 +95,7 @@ final class MusicSession {
     private var selections: [Page: Int] = [:]
     private var playingBackPage: Page = .songs
     private var busy = false
-    private var polling = false
+    private var pollingRevision: Int?
     private var revision = 0
     private var artworkID: String?
     var changed: (() -> Void)?
@@ -126,7 +126,7 @@ final class MusicSession {
         let next = max(0, min(count - 1, selection + steps))
         guard next != selection else { return }
         selections[page] = next
-        if page == .home || page == .music { notice = nil }
+        notice = nil
         changed?()
     }
 
@@ -180,11 +180,15 @@ final class MusicSession {
     }
 
     func refreshPlayback(initial: Bool = false) async {
-        guard page == .playing, !busy, !polling, notice == nil,
-              initial || playback != nil else { return }
-        polling = true
-        defer { polling = false }
+        guard !busy, pollingRevision != revision, notice == nil else { return }
+        switch page {
+        case .songs: guard !loadingSongs, !tracks.isEmpty else { return }
+        case .playing: guard initial || playback != nil else { return }
+        case .home, .music: return
+        }
         let requested = revision
+        pollingRevision = requested
+        defer { if pollingRevision == requested { pollingRevision = nil } }
         do {
             let value = try await service.snapshot()
             guard requested == revision else { return }
@@ -192,8 +196,12 @@ final class MusicSession {
             await loadArtworkIfNeeded()
         } catch {
             guard requested == revision else { return }
-            notice = (error as? MusicIssue ?? .failed).message
-            changed?()
+            if page == .songs {
+                install(nil)
+            } else {
+                notice = (error as? MusicIssue ?? .failed).message
+                changed?()
+            }
         }
     }
 
@@ -214,13 +222,15 @@ final class MusicSession {
                 if requested == self.revision { self.tracks = []; self.selections[.songs] = nil }
                 throw error
             }
+            guard requested == self.revision else { return }
             var seen = Set<String>()
             let previous = self.selections[.songs, default: 0]
             let selected = self.tracks.indices.contains(previous) ? self.tracks[previous].id : nil
             self.tracks = list.filter { !$0.id.isEmpty && seen.insert($0.id).inserted }
             self.selections[.songs] = selected.flatMap { id in self.tracks.firstIndex { $0.id == id } } ?? 0
-            if requested == self.revision, self.tracks.isEmpty { self.notice = "ライブラリに曲がありません。" }
+            if self.tracks.isEmpty { self.notice = "ライブラリに曲がありません。" }
         }
+        if page == .songs { await refreshPlayback() }
     }
 
     private func showPlaying() async {
@@ -246,14 +256,16 @@ final class MusicSession {
     }
 
     private func install(_ value: MusicPlayback?) {
-        if playback?.track.id != value?.track.id {
+        let trackChanged = playback?.track.id != value?.track.id
+        let stateChanged = playback?.isPlaying != value?.isPlaying
+        if trackChanged {
             updateTrackNumber(for: value?.track.id)
             artwork = nil
             artworkID = nil
         }
         if playback != value {
             playback = value
-            changed?()
+            if page != .songs || trackChanged || stateChanged { changed?() }
         }
     }
 

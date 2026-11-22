@@ -17,8 +17,7 @@ final class MusicScreenRenderer {
 
     private let width = 240
     private let height = 376
-    private let selectionBlue = MusicScreenRenderer.rgb(51, 109, 200)
-    private let selectionStripe = MusicScreenRenderer.rgb(73, 151, 212)
+    private var firstSongRow = 0
     private let menuSleeves = Bundle.main.url(forResource: "MenuSleeves", withExtension: "jpg")
         .flatMap { NSImage(contentsOf: $0) }
     private var artworkBytes: Data?
@@ -48,11 +47,7 @@ final class MusicScreenRenderer {
             menu(session)
             return context.makeImage()
         case .songs:
-            detailHeader("曲", palette: palette)
             songs(session)
-            if let notice = session.notice, !session.loadingSongs {
-                message(notice, color: palette.muted, y: session.tracks.isEmpty ? 107 : 307, height: 63, size: 12)
-            }
         case .playing:
             nowPlaying(session)
         }
@@ -71,20 +66,8 @@ final class MusicScreenRenderer {
         let selection = session.selection
         let first = max(0, selection - capacity + 1)
 
-        gradient(CGRect(x: 0, y: 0, width: screenWidth, height: statusHeight - 1),
-                 top: Self.rgb(251, 251, 251), bottom: Self.rgb(173, 173, 173))
-        fill(Self.rgb(121, 122, 122), 0, statusHeight - 1, screenWidth, 1)
-        let header = CGRect(x: 8, y: 0, width: 190, height: statusHeight - 1)
-        menuLabel(isHome ? "iPod" : "ミュージック", in: header,
-                  font: .boldSystemFont(ofSize: 13), color: .black)
-        if session.playback?.isPlaying == true {
-            menuLabel("▶", in: CGRect(x: 189, y: 0, width: 14, height: statusHeight - 1),
-                      font: .systemFont(ofSize: 10), color: Self.rgb(55, 78, 99))
-        }
-        fill(Self.rgb(74, 77, 70), 210, 4, 20, 10)
-        fill(Self.rgb(108, 110, 105), 230, 7, 2, 4)
-        gradient(CGRect(x: 211, y: 5, width: 18, height: 8),
-                 top: Self.rgb(204, 239, 153), bottom: Self.rgb(94, 162, 43))
+        browseHeader(isHome ? "iPod" : "ミュージック", indicator: session.playback?.isPlaying == true ? "▶" : nil,
+                     tint: Self.rgb(55, 78, 99))
 
         let font = NSFont(name: "HiraginoSans-W6", size: 17.5) ?? .boldSystemFont(ofSize: 17.5)
         for index in first..<min(first + capacity, items.count) {
@@ -126,6 +109,22 @@ final class MusicScreenRenderer {
         }
     }
 
+    private func browseHeader(_ title: String, indicator: String?, tint: NSColor) {
+        gradient(CGRect(x: 0, y: 0, width: 240, height: 19),
+                 top: Self.rgb(251, 251, 251), bottom: Self.rgb(173, 173, 173))
+        fill(Self.rgb(121, 122, 122), 0, 19, 240, 1)
+        menuLabel(title, in: CGRect(x: 8, y: 0, width: 178, height: 19),
+                  font: .boldSystemFont(ofSize: 13), color: .black)
+        if let indicator {
+            menuLabel(indicator, in: CGRect(x: 189, y: 0, width: 14, height: 19),
+                      font: .systemFont(ofSize: 10), color: tint)
+        }
+        fill(Self.rgb(74, 77, 70), 210, 4, 20, 10)
+        fill(Self.rgb(108, 110, 105), 230, 7, 2, 4)
+        gradient(CGRect(x: 211, y: 5, width: 18, height: 8),
+                 top: Self.rgb(204, 239, 153), bottom: Self.rgb(94, 162, 43))
+    }
+
     private func menuLabel(_ title: String, in rect: CGRect, font: NSFont, color: NSColor) {
         let attributes: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let label = title as NSString
@@ -145,28 +144,57 @@ final class MusicScreenRenderer {
     }
 
     private func songs(_ session: MusicSession) {
+        let indicator = session.playback.map { $0.isPlaying ? "▶" : "Ⅱ" }
+        browseHeader("曲", indicator: indicator, tint: Self.rgb(24, 134, 199))
         if session.loadingSongs {
             message("曲を読み込み中…", color: Self.browse.muted)
             return
         }
-        guard !session.tracks.isEmpty else { return }
-        let count = min(6, session.tracks.count)
-        let first = min(max(0, session.selection - count + 1), session.tracks.count - count)
-        for index in first..<(first + count) {
-            let track = session.tracks[index]
-            let y = CGFloat(87 + (index - first) * 36)
-            let selected = index == session.selection
-            rowBackground(y: y, height: 34, selected: selected)
-            text(track.title.isEmpty ? "タイトルなし" : track.title,
-                 at: CGRect(x: 23, y: y + 1, width: 190, height: 19), size: 14, weight: .semibold,
-                 color: selected ? .white : Self.browse.text)
-            text(track.artist, at: CGRect(x: 23, y: y + 19, width: 190, height: 14),
-                 size: 11, color: selected ? .white : Self.browse.muted)
+        guard !session.tracks.isEmpty else {
+            firstSongRow = 0
+            if let notice = session.notice { message(notice, color: Self.browse.muted) }
+            return
         }
-        if session.notice == nil {
-            text("\(session.selection + 1) / \(session.tracks.count)",
-                 at: CGRect(x: 16, y: 344, width: 208, height: 18), size: 12,
-                 color: Self.browse.muted, align: .right)
+        let capacity = session.notice == nil ? 12 : 9
+        let totalRows = session.tracks.count + 1
+        let selectedRow = session.selection + 1   // Row zero is the unavailable shuffle command.
+        let lastStart = max(0, totalRows - capacity)
+        firstSongRow = min(firstSongRow, selectedRow, lastStart)
+        firstSongRow = selectedRow == 1 ? 0 : max(firstSongRow, selectedRow - capacity + 1)
+        let rowHeight = CGFloat(height - 20) / 12
+        let playingRow = session.playback?.isPlaying == true ? session.playingTrackNumber : nil
+        for index in firstSongRow..<min(firstSongRow + capacity, totalRows) {
+            let offset = CGFloat(index - firstSongRow)
+            let top = 20 + (offset * rowHeight).rounded()
+            let bottom = 20 + ((offset + 1) * rowHeight).rounded()
+            let row = CGRect(x: 0, y: top, width: CGFloat(width), height: bottom - top)
+            if index == 0 {
+                let label = "シャッフル"
+                let font = NSFont.systemFont(ofSize: 17, weight: .medium)
+                menuLabel(label, in: row.insetBy(dx: 6, dy: 0), font: font, color: Self.browse.muted)
+                let labelWidth = (label as NSString).size(withAttributes: [.font: font]).width
+                symbol("shuffle", in: CGRect(x: 12 + ceil(labelWidth), y: row.midY - 8, width: 20, height: 16),
+                       tint: Self.browse.muted)
+                continue
+            }
+            let track = session.tracks[index - 1]
+            let selected = index == selectedRow
+            let playing = index == playingRow
+            if selected {
+                gradient(row, top: Self.rgb(58, 180, 229), bottom: Self.rgb(4, 139, 207))
+                fill(Self.rgb(8, 125, 189), 0, row.maxY - 1, row.width, 1)
+            }
+            let ink = selected ? NSColor.white : Self.browse.text
+            let titleRect = CGRect(x: 6, y: row.midY - 12, width: row.width - (playing ? 33 : 12), height: 24)
+            text(track.title.isEmpty ? "タイトルなし" : track.title, at: titleRect,
+                 size: 17, weight: selected ? .semibold : .medium, color: ink)
+            if playing {
+                symbol("speaker.wave.2.fill", in: CGRect(x: row.maxX - 24, y: row.midY - 8, width: 18, height: 16),
+                       tint: ink)
+            }
+        }
+        if let notice = session.notice {
+            message(notice, color: Self.browse.muted, y: 294, height: 77, size: 13)
         }
     }
 
@@ -297,12 +325,16 @@ final class MusicScreenRenderer {
     }
 
     private func statusSymbol(_ name: String, x: CGFloat, width: CGFloat) {
-        let config = NSImage.SymbolConfiguration(paletteColors: [Self.playback.muted])
-        guard let symbol = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return }
-        let scale = min(width / symbol.size.width, 14 / symbol.size.height)
-        let w = symbol.size.width * scale, h = symbol.size.height * scale
-        symbol.draw(in: CGRect(x: x + (width - w) / 2, y: 10 - h / 2, width: w, height: h),
-                    from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
+        symbol(name, in: CGRect(x: x, y: 3, width: width, height: 14), tint: Self.playback.muted)
+    }
+
+    private func symbol(_ name: String, in rect: CGRect, tint: NSColor) {
+        let config = NSImage.SymbolConfiguration(paletteColors: [tint])
+        guard let image = NSImage(systemSymbolName: name, accessibilityDescription: nil)?.withSymbolConfiguration(config) else { return }
+        let scale = min(rect.width / image.size.width, rect.height / image.size.height)
+        let w = image.size.width * scale, h = image.size.height * scale
+        image.draw(in: CGRect(x: rect.midX - w / 2, y: rect.midY - h / 2, width: w, height: h),
+                   from: .zero, operation: .sourceOver, fraction: 1, respectFlipped: true, hints: nil)
     }
 
     private func missingCover(in rect: CGRect) {
@@ -326,26 +358,6 @@ final class MusicScreenRenderer {
         note.close()
         note.addClip()
         gradient(note.bounds, top: Self.rgb(206, 215, 223), bottom: Self.rgb(154, 172, 192))
-    }
-
-    private func detailHeader(_ title: String, palette: Palette) {
-        fill(palette.accent, 0, 0, 240, 2)
-        text("NANODESK", at: CGRect(x: 15, y: 13, width: 110, height: 19), size: 12,
-             weight: .semibold, color: palette.accent)
-        let clock = Date.now.formatted(.dateTime.hour().minute())
-        text(clock, at: CGRect(x: 132, y: 13, width: 92, height: 19), size: 12,
-             color: palette.muted, align: .right)
-        fill(palette.muted.withAlphaComponent(0.27), 16, 37, 208, 1)
-        text(title, at: CGRect(x: 16, y: 47, width: 185, height: 31), size: 21, weight: .semibold, color: palette.text)
-    }
-
-    private func rowBackground(y: CGFloat, height: CGFloat, selected: Bool) {
-        if selected {
-            fill(selectionBlue, 15, y, 210, height)
-            fill(selectionStripe, 15, y, 3, height)
-        } else {
-            fill(Self.browse.muted.withAlphaComponent(0.2), 22, y + height, 196, 1)
-        }
     }
 
     private func message(_ value: String, color: NSColor, y: CGFloat = 107, height: CGFloat = 107, size: CGFloat = 14) {
