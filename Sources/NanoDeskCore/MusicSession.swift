@@ -120,8 +120,15 @@ final class MusicSession {
         covers.changed = { [weak self] in self?.changed?() }
     }
 
+    private(set) var isHeld = false
+
+    func toggleHold() {
+        isHeld.toggle()
+        if isHeld { covers.endWheel() }
+    }
+
     func setLandscape(_ side: LandscapeSide?) {
-        guard side != covers.side else { return }
+        guard !isHeld, side != covers.side else { return }
         notice = nil
         covers.orient(side, currentTrack: playback?.track.id)
     }
@@ -141,6 +148,7 @@ final class MusicSession {
     }
 
     func scroll(steps: Int, at time: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        guard !isHeld else { return }
         if covers.side != nil {
             if steps != 0 { notice = nil }
             covers.scroll(steps, at: time)
@@ -160,6 +168,7 @@ final class MusicSession {
     }
 
     func press(_ button: WheelButton) async {
+        guard !isHeld else { return }
         if covers.side != nil {
             switch button {
             case .menu:

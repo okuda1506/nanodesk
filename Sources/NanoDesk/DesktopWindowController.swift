@@ -19,6 +19,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     private var placement: DesktopPlacement
 
     private enum Drag {
+        case holdSwitch(start: CGPoint)
         case rotation(lastPoint: CGPoint)
         case roll(lastPoint: CGPoint)
         case move(mouseOrigin: CGPoint, windowOrigin: CGPoint, side: CGFloat)
@@ -173,13 +174,22 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
             drag = .roll(lastPoint: point)
         } else if hit == .housing || event.modifierFlags.contains(.shift) {
             drag = .rotation(lastPoint: point)
-        } else if let wheel = scene.wheelPoint(at: point, in: canvas.bounds) {
+        } else if hit == .holdSwitch {
+            drag = .holdSwitch(start: point)
+        } else if !music.isHeld, let wheel = scene.wheelPoint(at: point, in: canvas.bounds) {
             drag = .wheel(start: point, gesture: ClickWheelGesture(start: wheel))
         }
     }
 
     func pointerDragged(_ event: NSEvent, to point: CGPoint) {
         switch drag {
+        case .holdSwitch(let start):
+            let delta = CGPoint(x: point.x - start.x, y: point.y - start.y)
+            if hypot(delta.x, delta.y) >= 3 {
+                scene.drag(by: delta)
+                drag = .rotation(lastPoint: point)
+                updateOrientation()
+            }
         case .rotation(let previous):
             scene.drag(by: CGPoint(x: point.x - previous.x, y: point.y - previous.y))
             drag = .rotation(lastPoint: point)
@@ -204,6 +214,13 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     }
 
     func pointerUp(at point: CGPoint?) {
+        if case .holdSwitch(let start) = drag, let point,
+           hypot(point.x - start.x, point.y - start.y) < 3,
+           scene.hit(at: point, in: canvas.bounds) == .holdSwitch {
+            music.toggleHold()
+            scene.setHold(music.isHeld)
+            canvas.requestFrame()
+        }
         if case .wheel(let start, let gesture) = drag, let point,
            let offset = scene.wheelPoint(at: point, in: canvas.bounds),
            let button = gesture.release(at: offset, distance: hypot(point.x - start.x, point.y - start.y)) {

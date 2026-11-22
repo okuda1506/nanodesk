@@ -1,7 +1,7 @@
 import Foundation
 
 enum DeviceHit: Equatable {
-    case outside, housing, wheel
+    case outside, housing, wheel, holdSwitch
 }
 
 struct DeviceHitTest {
@@ -9,6 +9,9 @@ struct DeviceHitTest {
     let maximum: SIMD3<Float>
     let wheelCenter: SIMD3<Float>
     let wheelRadius: Float
+
+    // Footprint of the switch well on the device's X/Z top face, in meters.
+    var holdSlot: CGRect = .null
 
     func hit(origin: SIMD3<Float>, direction: SIMD3<Float>) -> DeviceHit {
         var near: Float = 0
@@ -25,6 +28,18 @@ struct DeviceHitTest {
             if near > far { return .outside }
         }
 
+        if direction.y < -0.000001 {
+            let top = (maximum.y - origin.y) / direction.y
+            if top >= near, top <= far {
+                let point = origin + direction * top
+                if holdSlot.contains(CGPoint(x: CGFloat(point.x), y: CGFloat(point.z))) {
+                    let radius = holdSlot.height / 2
+                    let dx = max(0, abs(CGFloat(point.x) - holdSlot.midX) - (holdSlot.width / 2 - radius))
+                    let dz = CGFloat(point.z) - holdSlot.midY
+                    if dx * dx + dz * dz <= radius * radius { return .holdSwitch }
+                }
+            }
+        }
         return wheelPoint(origin: origin, direction: direction, near: near, far: far) == nil ? .housing : .wheel
     }
 

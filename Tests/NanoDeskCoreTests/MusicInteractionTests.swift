@@ -470,6 +470,56 @@ struct MusicInteractionTests {
         #expect(session.page == .home && session.notice == nil)
     }
 
+    @Test func holdLocksTheWheelAndRotationWhileMusicKeepsPlaying() async throws {
+        let service = MockMusic([first, second])
+        let session = MusicSession(service: service)
+        await openSongs(in: session)
+        await session.press(.select)
+        session.toggleHold()
+        await service.advance(to: 42)
+        await session.refreshPlayback()
+        #expect(session.playback?.elapsed == 42)
+        session.setLandscape(.right)
+        #expect(session.covers.side == nil)
+        for button: WheelButton in [.menu, .next, .previous, .playPause, .select] {
+            await session.press(button)
+            #expect(session.page == .playing)
+            let current = try await service.snapshot()
+            #expect(current?.track == first && current?.isPlaying == true && current?.elapsed == 42)
+        }
+        session.toggleHold()
+        await session.press(.playPause)
+        #expect(session.playback?.isPlaying == false)
+        await session.press(.menu)
+        session.toggleHold()
+        session.scroll(steps: 1)
+        await session.press(.select)
+        #expect(session.page == .songs && session.selection == 0)
+        session.toggleHold()
+        session.scroll(steps: 1)
+        #expect(session.selection == 1)
+    }
+
+    @Test func holdKeepsCoverFlowOpenAndPreventsAlbumNavigation() async {
+        let session = MusicSession(service: MockMusic([first, second]))
+        session.setLandscape(.left)
+        await waitForCovers(in: session)
+        let album = session.covers.index
+        session.toggleHold()
+        session.setLandscape(nil)
+        session.setLandscape(.right)
+        session.scroll(steps: 4)
+        await session.press(.select)
+        await session.press(.menu)
+        #expect(session.covers.side == .left && session.covers.index == album)
+        #expect(!session.covers.scanning && session.covers.trackIndex == nil)
+        session.toggleHold()
+        await session.press(.select)
+        #expect(session.covers.trackIndex == 0)
+        session.setLandscape(nil)
+        #expect(session.covers.side == nil)
+    }
+
     private func waitForCovers(in session: MusicSession) async {
         let timeout = ContinuousClock.now + .seconds(3)
         while session.covers.loading && ContinuousClock.now < timeout { await Task.yield() }

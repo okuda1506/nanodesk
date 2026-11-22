@@ -40,14 +40,27 @@ final class DeviceScene {
     private let pivot: Entity
     private let deviceHitTest: DeviceHitTest
     private let screenSurface: Entity
+    private let holdSlider: Entity
+    private let holdIndicator: Entity
+    private let heldPosition: SIMD3<Float>
+    private let releasedPosition: SIMD3<Float>
     private var displayTexture: TextureResource?
     private(set) var orientation = DeviceOrientation()
 
-    private init(renderer: RealityRenderer, pivot: Entity, deviceHitTest: DeviceHitTest, screenSurface: Entity) {
+    private init(renderer: RealityRenderer, pivot: Entity, deviceHitTest: DeviceHitTest, screenSurface: Entity,
+                 holdSlider: Entity, holdIndicator: Entity) {
         self.renderer = renderer
         self.pivot = pivot
         self.deviceHitTest = deviceHitTest
         self.screenSurface = screenSurface
+        self.holdSlider = holdSlider
+        self.holdIndicator = holdIndicator
+        // The USDZ shows the switch slid to the right with the orange strip exposed.
+        let position = holdSlider.position(relativeTo: pivot)
+        heldPosition = position
+        let travel = holdIndicator.visualBounds(relativeTo: pivot).min.x - holdSlider.visualBounds(relativeTo: pivot).min.x
+        releasedPosition = position + SIMD3(travel, 0, 0)
+        setHold(false)
     }
 
     static func load(from bundle: Bundle = .main) async throws -> DeviceScene {
@@ -61,6 +74,13 @@ final class DeviceScene {
         guard missing.isEmpty else { throw DeviceSceneError.namedPartsMissing(missing) }
         guard let wheel = device.findEntity(named: "WheelRing") else {
             throw DeviceSceneError.namedPartsMissing(["WheelRing"])
+        }
+        guard let slider = device.findEntity(named: "HoldSwitch"),
+              let indicator = device.findEntity(named: "HoldIndicator"),
+              let well = device.findEntity(named: "HoldSwitchWell") else {
+            throw DeviceSceneError.namedPartsMissing(["HoldSwitch", "HoldIndicator", "HoldSwitchWell"].filter {
+                device.findEntity(named: $0) == nil
+            })
         }
         guard let screen = device.findEntity(named: "ScreenSurface"),
               let surface = screenMesh(in: screen) else { throw DeviceSceneError.screenUnavailable }
@@ -84,10 +104,13 @@ final class DeviceScene {
         centered.position = -bounds.center
         let box = device.visualBounds(relativeTo: pivot)
         let wheelBounds = wheel.visualBounds(relativeTo: pivot)
+        let slot = well.visualBounds(relativeTo: pivot)
         let hitTest = DeviceHitTest(
             minimum: box.min, maximum: box.max,
             wheelCenter: SIMD3(wheelBounds.center.x, wheelBounds.center.y, wheelBounds.max.z),
-            wheelRadius: min(wheelBounds.extents.x, wheelBounds.extents.y) / 2
+            wheelRadius: min(wheelBounds.extents.x, wheelBounds.extents.y) / 2,
+            holdSlot: CGRect(x: CGFloat(slot.min.x), y: CGFloat(slot.min.z),
+                             width: CGFloat(slot.extents.x), height: CGFloat(slot.extents.z))
         )
 
         let camera = Entity()
@@ -107,7 +130,8 @@ final class DeviceScene {
         renderer.extendedDynamicRangeOutput = false
         renderer.lighting.resource = environment
         renderer.lighting.intensityExponent = lightExposure
-        return DeviceScene(renderer: renderer, pivot: pivot, deviceHitTest: hitTest, screenSurface: surface)
+        return DeviceScene(renderer: renderer, pivot: pivot, deviceHitTest: hitTest, screenSurface: surface,
+                           holdSlider: slider, holdIndicator: indicator)
     }
 
     private static func screenMesh(in entity: Entity) -> Entity? {
@@ -136,6 +160,11 @@ final class DeviceScene {
         model.materials = [display]
         screenSurface.components.set(model)
         displayTexture = texture
+    }
+
+    func setHold(_ held: Bool) {
+        holdSlider.setPosition(held ? heldPosition : releasedPosition, relativeTo: pivot)
+        holdIndicator.isEnabled = held
     }
 
     func drag(by delta: CGPoint) {

@@ -38,6 +38,18 @@ struct DesktopInteractionTests {
         #expect(hit.hit(origin: [0.10, 0, 0.25], direction: [0, 0, -1]) == .outside)
     }
 
+    @Test func holdSwitchRequiresAVisibleTopFaceAndAClickInsideItsSlot() {
+        let hit = DeviceHitTest(minimum: [-0.020, -0.045, -0.003], maximum: [0.020, 0.045, 0.003],
+                                wheelCenter: [0, -0.026, 0.0029], wheelRadius: 0.01355,
+                                holdSlot: CGRect(x: -0.01255, y: -0.00104, width: 0.0088, height: 0.00208))
+        #expect(hit.hit(origin: [-0.008, 0.25, 0], direction: [0, -1, 0]) == .holdSwitch)
+        #expect(hit.hit(origin: [-0.0115, 0.145, 0.05], direction: [0, -1, -0.5]) == .holdSwitch)
+        #expect(hit.hit(origin: [-0.0125, 0.25, 0.001], direction: [0, -1, 0]) == .housing)
+        #expect(hit.hit(origin: [0.005, 0.25, 0], direction: [0, -1, 0]) == .housing)
+        #expect(hit.hit(origin: [-0.008, -0.25, 0], direction: [0, 1, 0]) == .housing)
+        #expect(hit.hit(origin: [-0.008, 0.044, 0.25], direction: [0, 0, -1]) == .housing)
+    }
+
     @Test func placementOnSecondaryDisplayAndAfterDisconnect() throws {
         let primary = CGRect(x: 0, y: 25, width: 1440, height: 820)
         let secondary = CGRect(x: -1024, y: 100, width: 1024, height: 720)
