@@ -13,6 +13,8 @@ On an Apple Silicon Mac running macOS 15 or later, install Xcode 16 or later. Op
 | Action | Control |
 |---|---|
 | Rotate in both axes | Drag the housing. Shift-drag anywhere on the device, including the wheel. |
+| Open Cover Flow | From Home, a Music menu or Now Playing, twist two fingers over the device or Command-drag it sideways until it is horizontal. Both directions work. You can also select **ミュージック → Cover Flow**. |
+| Browse albums | Trace the wheel to move through the sleeves. Turn quickly to scan artist initials, then lift or pause to resume album browsing. Press center for the album’s tracks, then center on a track to play. Turn upright to return. |
 | Browse and select | Trace the visible wheel to scroll. Click its center to select and MENU to go back. |
 | Control playback | On any screen, click the bottom of the wheel to play/pause, the right to skip to the next song, or the left for the previous song. The menu and its highlight stay in place. |
 | Return to the front | Double-click the housing or select **Reset Orientation**. |

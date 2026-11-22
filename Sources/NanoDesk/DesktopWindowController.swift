@@ -10,16 +10,17 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     private static let preferenceKey = "NanoDesk.DesktopPlacement.v1"
     private let scene: DeviceScene
     private let canvas: DeviceCanvas
-    private let music = MusicSession(service: MusicAppBridge())
-    private let screen = MusicScreenRenderer()
+    private let music: MusicSession
+    private let screen: MusicScreenRenderer
     private var playbackPoll: Task<Void, Never>?
     private var screenUpdate: Task<Void, Never>?
-    private var titleFrame: Task<Void, Never>?
+    private var screenFrame: Task<Void, Never>?
     private var screenDirty = false
     private var placement: DesktopPlacement
 
     private enum Drag {
         case rotation(lastPoint: CGPoint)
+        case roll(lastPoint: CGPoint)
         case move(mouseOrigin: CGPoint, windowOrigin: CGPoint, side: CGFloat)
         case wheel(start: CGPoint, gesture: ClickWheelGesture)
     }
@@ -27,6 +28,9 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
 
     init(scene: DeviceScene, onRenderError: @escaping (any Error) -> Void) throws {
         self.scene = scene
+        let service = MusicAppBridge()
+        self.music = MusicSession(service: service)
+        self.screen = MusicScreenRenderer(service: service)
         let canvas = try DeviceCanvas(scene: scene)
         self.canvas = canvas
         var settings = UserDefaults.standard.data(forKey: Self.preferenceKey)
@@ -54,6 +58,13 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         super.init(window: window)
         canvas.input = self
         canvas.onRenderError = onRenderError
+        screen.artworkChanged = { [weak self] in self?.queueScreenUpdate() }
+        music.orientDevice = { [weak self] side in
+            guard let self else { return }
+            self.scene.resetOrientation()
+            if let side { self.scene.roll(by: side == .left ? .pi / 2 : -.pi / 2) }
+            self.canvas.requestFrame()
+        }
         music.changed = { [weak self] in self?.queueScreenUpdate() }
         NotificationCenter.default.addObserver(
             self, selector: #selector(repositionForScreens),
@@ -78,7 +89,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         applyPlacement()
         window?.orderFrontRegardless()
         canvas.requestFrame()
-        if screen.titleIsScrolling { queueScreenUpdate() }
+        if music.covers.side != nil || screen.frameInterval != nil { queueScreenUpdate() }
         if playbackPoll == nil {
             playbackPoll = Task { [weak self] in
                 var clockMinute = Calendar.current.component(.minute, from: .now)
@@ -87,7 +98,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
                     guard !Task.isCancelled, let music = self?.music else { break }
                     await music.refreshPlayback()
                     let minute = Calendar.current.component(.minute, from: .now)
-                    if music.page == .playing && minute != clockMinute { self?.queueScreenUpdate() }
+                    if (music.page == .playing || music.covers.side != nil) && minute != clockMinute { self?.queueScreenUpdate() }
                     clockMinute = minute
                 }
             }
@@ -98,14 +109,16 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         pointerUp(at: nil)
         playbackPoll?.cancel()
         playbackPoll = nil
-        titleFrame?.cancel()
-        titleFrame = nil
+        screenFrame?.cancel()
+        screenFrame = nil
+        screen.suspendCoverFlow()
         window?.orderOut(nil)
     }
 
     func resetOrientation() {
         pointerUp(at: nil)
         scene.resetOrientation()
+        music.setLandscape(nil)
         canvas.requestFrame()
     }
 
@@ -131,6 +144,16 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         save()
     }
 
+    func roll(by radians: Float) {
+        scene.roll(by: radians)
+        updateOrientation()
+    }
+
+    private func updateOrientation() {
+        music.setLandscape(scene.orientation.landscape(keeping: music.covers.side))
+        canvas.requestFrame()
+    }
+
     func zoom(by factor: Double) {
         guard factor > 0, factor.isFinite else { return }
         setScale(placement.scale * factor)
@@ -146,6 +169,8 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
                          side: window.frame.width)
         } else if event.clickCount == 2 && hit == .housing {
             resetOrientation()
+        } else if event.modifierFlags.contains(.command) {
+            drag = .roll(lastPoint: point)
         } else if hit == .housing || event.modifierFlags.contains(.shift) {
             drag = .rotation(lastPoint: point)
         } else if let wheel = scene.wheelPoint(at: point, in: canvas.bounds) {
@@ -158,7 +183,10 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         case .rotation(let previous):
             scene.drag(by: CGPoint(x: point.x - previous.x, y: point.y - previous.y))
             drag = .rotation(lastPoint: point)
-            canvas.requestFrame()
+            updateOrientation()
+        case .roll(let previous):
+            roll(by: Float(previous.x - point.x) * DeviceOrientation.radiansPerPoint)
+            drag = .roll(lastPoint: point)
         case .move(let mouseOrigin, let windowOrigin, let side):
             let mouse = NSEvent.mouseLocation
             let center = CGPoint(x: windowOrigin.x + mouse.x - mouseOrigin.x + side / 2,
@@ -169,7 +197,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
             let offset = scene.wheelPoint(at: point, in: canvas.bounds)
             let steps = gesture.move(to: offset, distance: hypot(point.x - start.x, point.y - start.y))
             drag = .wheel(start: start, gesture: gesture)
-            music.scroll(steps: steps)
+            music.scroll(steps: steps, at: event.timestamp)
         case nil:
             break
         }
@@ -181,17 +209,21 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
            let button = gesture.release(at: offset, distance: hypot(point.x - start.x, point.y - start.y)) {
             Task { [music] in await music.press(button) }
         }
+        if case .wheel = drag { music.covers.endWheel() }
         if case .move = drag { save() }
         drag = nil
     }
 
     private func queueScreenUpdate() {
+        if music.covers.side != nil, window?.occlusionState.contains(.visible) != true { return }
         screenDirty = true
         guard screenUpdate == nil else { return }
         screenUpdate = Task { [weak self] in
             guard let self else { return }
             defer { screenUpdate = nil }
+            var frameStart = ContinuousClock.now
             while screenDirty {
+                frameStart = .now
                 screenDirty = false
                 do {
                     guard let image = screen.image(for: music) else { throw DeviceSceneError.screenUnavailable }
@@ -202,11 +234,12 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
                     return
                 }
             }
-            titleFrame?.cancel()
-            titleFrame = nil
-            if screen.titleIsScrolling, window?.occlusionState.contains(.visible) == true {
-                titleFrame = Task { [weak self] in
-                    do { try await Task.sleep(for: .milliseconds(80)) } catch { return }
+            screenFrame?.cancel()
+            screenFrame = nil
+            if let interval = screen.frameInterval, window?.occlusionState.contains(.visible) == true {
+                let deadline = frameStart.advanced(by: interval)
+                screenFrame = Task { [weak self] in
+                    do { try await Task.sleep(until: deadline, clock: .continuous) } catch { return }
                     self?.queueScreenUpdate()
                 }
             }
@@ -225,7 +258,11 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
 
     @objc private func redrawOnReveal(_ notification: Notification) {
         canvas.requestFrame()
-        if screen.titleIsScrolling { queueScreenUpdate() }
+        if window?.occlusionState.contains(.visible) == true {
+            if music.covers.side != nil || screen.frameInterval != nil { queueScreenUpdate() }
+        } else {
+            screen.suspendCoverFlow()
+        }
     }
 
     private func applyPlacement(persist: Bool = true) {

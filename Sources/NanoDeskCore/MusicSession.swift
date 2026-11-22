@@ -5,6 +5,11 @@ struct MusicTrack: Equatable, Sendable {
     let title: String
     let artist: String
     var album: String = ""
+    var albumArtist: String = ""
+    var sortAlbumArtist: String = ""
+    var isCompilation = false
+    var discNumber = 0
+    var trackNumber = 0
 }
 
 struct MusicPlayback: Equatable, Sendable {
@@ -54,10 +59,13 @@ enum MusicIssue: Error, Sendable {
     }
 }
 
+enum MusicPlayIntent: Sendable {
+    case transport, selectSong, selectAlbumTrack
+}
+
 protocol MusicService: Sendable {
     func tracks() async throws -> [MusicTrack]
-    /// When preserving the current track, return its live position and transport state without restarting it.
-    func play(_ id: String, preservingCurrent: Bool) async throws -> MusicPlayback
+    func play(_ id: String, intent: MusicPlayIntent) async throws -> MusicPlayback
     func snapshot() async throws -> MusicPlayback?
     /// Toggle an active or paused track. Return nil when Music has no current playback.
     func togglePlayback() async throws -> MusicPlayback?
@@ -102,7 +110,21 @@ final class MusicSession {
     private var artworkID: String?
     var changed: (() -> Void)?
 
-    init(service: any MusicService) { self.service = service }
+    let covers: CoverFlowBrowser
+    var orientDevice: ((LandscapeSide?) -> Void)?
+
+    init(service: any MusicService) {
+        self.service = service
+        covers = CoverFlowBrowser(service: service)
+        covers.libraryLoaded = { [weak self] tracks in self?.installLibrary(tracks) }
+        covers.changed = { [weak self] in self?.changed?() }
+    }
+
+    func setLandscape(_ side: LandscapeSide?) {
+        guard side != covers.side else { return }
+        notice = nil
+        covers.orient(side, currentTrack: playback?.track.id)
+    }
 
     var menuItems: [MenuItem] {
         switch page {
@@ -118,7 +140,12 @@ final class MusicSession {
         return page == .music ? min(index, menuItems.count - 1) : index
     }
 
-    func scroll(steps: Int) {
+    func scroll(steps: Int, at time: TimeInterval = ProcessInfo.processInfo.systemUptime) {
+        if covers.side != nil {
+            if steps != 0 { notice = nil }
+            covers.scroll(steps, at: time)
+            return
+        }
         let count = switch page {
         case .home, .music: menuItems.count
         case .songs: tracks.count
@@ -133,6 +160,29 @@ final class MusicSession {
     }
 
     func press(_ button: WheelButton) async {
+        if covers.side != nil {
+            switch button {
+            case .menu:
+                notice = nil
+                if covers.trackIndex != nil { covers.closeAlbum() }
+                else {
+                    setLandscape(nil)
+                    orientDevice?(nil)
+                }
+                return
+            case .select:
+                guard !busy else { return }
+                if let track = covers.selectedTrack {
+                    await run { try await self.play(track.id, intent: .selectAlbumTrack, requested: $0) }
+                } else if covers.album != nil {
+                    covers.openAlbum()
+                } else {
+                    covers.load(currentTrack: playback?.track.id)
+                }
+                return
+            default: break
+            }
+        }
         if button == .menu {
             notice = nil
             revision += 1
@@ -151,6 +201,9 @@ final class MusicSession {
             case .home, .music:
                 switch menuItems[selection] {
                 case .music: transition(to: .music)
+                case .coverFlow:
+                    orientDevice?(.left)
+                    setLandscape(.left)
                 case .songs: await showSongs()
                 case .playing: await showPlaying()
                 default:
@@ -160,7 +213,7 @@ final class MusicSession {
             case .songs:
                 if tracks.indices.contains(selection) {
                     let id = tracks[selection].id
-                    await run { try await self.play(id, openPlayer: true, requested: $0) }
+                    await run { try await self.play(id, intent: .selectSong, requested: $0) }
                 } else {
                     await showSongs()
                 }
@@ -169,8 +222,9 @@ final class MusicSession {
             }
         case .playPause, .previous, .next:
             let startIndex = page == .songs ? selection : 0
+            let coverStart = covers.side == nil ? nil : covers.selectedTrack ?? covers.album?.tracks.first
             await run(keepNotice: page == .songs && tracks.isEmpty) { requested in
-                try await self.transport(button, startIndex: startIndex, requested: requested)
+                try await self.transport(button, startIndex: startIndex, coverStart: coverStart, requested: requested)
             }
         case .menu:
             break
@@ -179,11 +233,13 @@ final class MusicSession {
 
     func refreshPlayback(initial: Bool = false) async {
         guard !busy, pollingRevision != revision, notice == nil else { return }
-        switch page {
-        case .songs: guard !loadingSongs, !tracks.isEmpty else { return }
-        case .playing: guard initial || playback != nil else { return }
-        case .home, .music: return
-        }
+        if covers.side == nil {
+            switch page {
+            case .songs: guard !loadingSongs, !tracks.isEmpty else { return }
+            case .playing: guard initial || playback != nil else { return }
+            case .home, .music: return
+            }
+        } else if covers.album == nil { return }
         let requested = revision
         pollingRevision = requested
         defer { if pollingRevision == requested { pollingRevision = nil } }
@@ -194,7 +250,7 @@ final class MusicSession {
             await loadArtworkIfNeeded()
         } catch {
             guard requested == revision else { return }
-            if page == .songs {
+            if page == .songs || covers.side != nil {
                 install(nil)
             } else {
                 notice = (error as? MusicIssue ?? .failed).message
@@ -225,12 +281,16 @@ final class MusicSession {
             throw error
         }
         guard requested == revision else { return }
+        installLibrary(list)
+        notice = tracks.isEmpty ? "ライブラリに曲がありません。" : nil
+    }
+
+    private func installLibrary(_ list: [MusicTrack]) {
         var seen = Set<String>()
         let previous = selections[.songs, default: 0]
         let selected = tracks.indices.contains(previous) ? tracks[previous].id : nil
         tracks = list.filter { !$0.id.isEmpty && seen.insert($0.id).inserted }
         selections[.songs] = selected.flatMap { id in tracks.firstIndex { $0.id == id } } ?? 0
-        notice = tracks.isEmpty ? "ライブラリに曲がありません。" : nil
     }
 
     private func showPlaying() async {
@@ -239,7 +299,7 @@ final class MusicSession {
         await refreshPlayback(initial: true)
     }
 
-    private func transport(_ button: WheelButton, startIndex: Int, requested: Int) async throws {
+    private func transport(_ button: WheelButton, startIndex: Int, coverStart: MusicTrack?, requested: Int) async throws {
         if button == .playPause {
             let current = try await service.togglePlayback()
             install(current)
@@ -253,6 +313,10 @@ final class MusicSession {
             guard current != nil else { return }
         }
         guard revision == requested else { return }
+        if button == .playPause, let coverStart {
+            try await play(coverStart.id, intent: .transport, requested: requested)
+            return
+        }
         if tracks.isEmpty { try await reloadTracks(requested: requested) }
         guard revision == requested, !tracks.isEmpty else { return }
 
@@ -267,14 +331,14 @@ final class MusicSession {
             index = number - 1 + (button == .next ? 1 : -1)
         }
         guard tracks.indices.contains(index) else { return }
-        try await play(tracks[index].id, openPlayer: false, requested: requested)
+        try await play(tracks[index].id, intent: .transport, requested: requested)
     }
 
-    private func play(_ id: String, openPlayer: Bool, requested: Int) async throws {
-        let value = try await service.play(id, preservingCurrent: openPlayer)
+    private func play(_ id: String, intent: MusicPlayIntent, requested: Int) async throws {
+        let value = try await service.play(id, intent: intent)
         install(value)
         guard revision == requested else { return }
-        if openPlayer {
+        if intent != .transport && page != .playing {
             playingBackPage = page
             transition(to: .playing)
         }
@@ -292,7 +356,7 @@ final class MusicSession {
         }
         if playback != value {
             playback = value
-            if page != .songs || trackChanged || stateChanged { changed?() }
+            if (page != .songs && covers.side == nil) || trackChanged || stateChanged { changed?() }
         }
     }
 
@@ -301,7 +365,7 @@ final class MusicSession {
     }
 
     private func loadArtworkIfNeeded() async {
-        guard page == .playing || page == .home, let id = playback?.track.id, artworkID != id else { return }
+        guard covers.side == nil, page == .playing || page == .home, let id = playback?.track.id, artworkID != id else { return }
         artworkID = id
         if let data = try? await service.artwork(for: id), playback?.track.id == id {
             artwork = data

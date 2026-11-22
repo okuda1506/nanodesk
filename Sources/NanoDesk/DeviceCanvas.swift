@@ -7,6 +7,7 @@ protocol DeviceInput: AnyObject {
     func pointerDown(_ event: NSEvent, at point: CGPoint)
     func pointerDragged(_ event: NSEvent, to point: CGPoint)
     func pointerUp(at point: CGPoint?)
+    func roll(by radians: Float)
     func zoom(by factor: Double)
 }
 
@@ -40,6 +41,10 @@ final class DeviceCanvas: NSView {
         pinch.delaysPrimaryMouseButtonEvents = false
         pinch.delaysMagnificationEvents = false
         addGestureRecognizer(pinch)
+
+        let rotation = NSRotationGestureRecognizer(target: self, action: #selector(handleRotation(_:)))
+        rotation.delaysPrimaryMouseButtonEvents = false
+        addGestureRecognizer(rotation)
     }
 
     @available(*, unavailable)
@@ -122,6 +127,13 @@ final class DeviceCanvas: NSView {
         guard event.modifierFlags.contains(.command) else { return }
         let rate = event.hasPreciseScrollingDeltas ? 0.008 : 0.07
         input?.zoom(by: exp(Double(event.scrollingDeltaY) * rate))
+    }
+
+    @objc private func handleRotation(_ gesture: NSRotationGestureRecognizer) {
+        guard gesture.state == .began || gesture.state == .changed || gesture.state == .ended else { return }
+        let delta = gesture.rotation
+        gesture.rotation = 0
+        if delta != 0 { input?.roll(by: Float(delta)) }
     }
 
     @objc private func handlePinch(_ gesture: NSMagnificationGestureRecognizer) {

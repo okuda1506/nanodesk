@@ -9,26 +9,37 @@ struct MusicAppBridge: MusicService {
         try await Self.openMusicIfNeeded()
         return try await work {
             let columns = try Self.execute(.tracks)
-            guard columns.numberOfItems == 3, let ids = columns.atIndex(1),
-                  let names = columns.atIndex(2), let artists = columns.atIndex(3),
-                  names.numberOfItems == ids.numberOfItems, artists.numberOfItems == ids.numberOfItems else {
+            guard columns.numberOfItems == 9, let ids = columns.atIndex(1) else { throw MusicIssue.invalidResponse }
+            let fields = (1...9).compactMap { columns.atIndex($0) }
+            guard fields.count == 9, fields.allSatisfy({ $0.numberOfItems == ids.numberOfItems }) else {
                 throw MusicIssue.invalidResponse
             }
             return (0..<ids.numberOfItems).compactMap { offset in
-                let index = offset + 1
-                guard let id = ids.atIndex(index)?.stringValue, !id.isEmpty else { return nil }
-                return MusicTrack(id: id, title: names.atIndex(index)?.stringValue ?? "",
-                                  artist: artists.atIndex(index)?.stringValue ?? "")
+                let row = offset + 1
+                guard let id = ids.atIndex(row)?.stringValue, !id.isEmpty else { return nil }
+                return MusicTrack(id: id, title: fields[1].atIndex(row)?.stringValue ?? "",
+                                  artist: fields[2].atIndex(row)?.stringValue ?? "",
+                                  album: fields[3].atIndex(row)?.stringValue ?? "",
+                                  albumArtist: fields[4].atIndex(row)?.stringValue ?? "",
+                                  sortAlbumArtist: fields[5].atIndex(row)?.stringValue ?? "",
+                                  isCompilation: (fields[6].atIndex(row)?.int32Value ?? 0) != 0,
+                                  discNumber: Int(fields[7].atIndex(row)?.int32Value ?? 0),
+                                  trackNumber: Int(fields[8].atIndex(row)?.int32Value ?? 0))
             }
         }
     }
 
-    func play(_ id: String, preservingCurrent: Bool) async throws -> MusicPlayback {
+    func play(_ id: String, intent: MusicPlayIntent) async throws -> MusicPlayback {
         try await Self.openMusicIfNeeded()
         return try await work {
-            let row = try Self.execute(preservingCurrent ? .selectTrack : .play, id: id)
+            let command: Command = switch intent {
+            case .transport: .play
+            case .selectSong: .selectTrack
+            case .selectAlbumTrack: .selectAlbumTrack
+            }
+            let row = try Self.execute(command, id: id)
             guard let playback = try Self.playback(row), playback.track.id == id,
-                  preservingCurrent || playback.isPlaying else {
+                  intent == .selectSong || playback.isPlaying else {
                 throw MusicIssue.cannotPlay
             }
             return playback
@@ -122,13 +133,13 @@ struct MusicAppBridge: MusicService {
         case -1712: return .timedOut
         default:
             if compiling { return .scriptSetup(code: code) }
-            if command == .play || command == .selectTrack, code == -2701 || code == -1728 { return .cannotPlay }
+            if command == .play || command == .selectTrack || command == .selectAlbumTrack, code == -2701 || code == -1728 { return .cannotPlay }
             return .eventFailed(code: code)
         }
     }
 
     private enum Command {
-        case tracks, play, selectTrack, snapshot, toggle, artwork
+        case tracks, play, selectTrack, selectAlbumTrack, snapshot, toggle, artwork
 
         var source: String {
             let readPlayback = """
@@ -156,10 +167,11 @@ struct MusicAppBridge: MusicService {
             switch self {
             case .tracks:
                 code = """
-                    if (count tracks of library playlist 1) is 0 then return {{}, {}, {}}
-                    return {persistent ID, name, artist} of every track of library playlist 1
+                    if (count tracks of library playlist 1) is 0 then return {{}, {}, {}, {}, {}, {}, {}, {}, {}}
+                    return {persistent ID, name, artist, album, album artist, sort album artist, ¬
+                        compilation, disc number, track number} of every track of library playlist 1
                     """
-            case .play, .selectTrack:
+            case .play, .selectTrack, .selectAlbumTrack:
                 let startTrack = """
                     set itemTrack to first track of library playlist 1 whose persistent ID is targetID
                     play itemTrack
@@ -171,7 +183,8 @@ struct MusicAppBridge: MusicService {
                     end repeat
                     if player state is not playing then return {}
                     """
-                if self == .selectTrack {
+                if self != .play {
+                    let resume = self == .selectAlbumTrack ? "else if player state is paused then\nplay" : ""
                     code = """
                         set shouldStart to true
                         if player state is not stopped then
@@ -179,6 +192,7 @@ struct MusicAppBridge: MusicService {
                         end if
                         if shouldStart then
                             \(startTrack)
+                        \(resume)
                         end if
                         \(readPlayback)
                         """
@@ -191,11 +205,15 @@ struct MusicAppBridge: MusicService {
                 code = "if player state is stopped then return {}\nplaypause\n" + readPlayback
             case .artwork:
                 code = """
-                    if player state is stopped then return {}
-                    set playingTrack to current track
-                    if persistent ID of playingTrack is not targetID then return {}
-                    if (count of artworks of playingTrack) is 0 then return {}
-                    return {raw data of artwork 1 of playingTrack}
+                    set artTrack to missing value
+                    if player state is not stopped then
+                        try
+                            if persistent ID of current track is targetID then set artTrack to current track
+                        end try
+                    end if
+                    if artTrack is missing value then set artTrack to first track of library playlist 1 whose persistent ID is targetID
+                    if (count of artworks of artTrack) is 0 then return {}
+                    return {raw data of artwork 1 of artTrack}
                     """
             }
             return """

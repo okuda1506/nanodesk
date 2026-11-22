@@ -41,7 +41,7 @@ final class DeviceScene {
     private let deviceHitTest: DeviceHitTest
     private let screenSurface: Entity
     private var displayTexture: TextureResource?
-    private var orientation = DeviceOrientation()
+    private(set) var orientation = DeviceOrientation()
 
     private init(renderer: RealityRenderer, pivot: Entity, deviceHitTest: DeviceHitTest, screenSurface: Entity) {
         self.renderer = renderer
@@ -140,6 +140,11 @@ final class DeviceScene {
 
     func drag(by delta: CGPoint) {
         orientation.drag(horizontal: Float(delta.x), vertical: Float(delta.y))
+        pivot.orientation = simd_quatf(vector: orientation.quaternion)
+    }
+
+    func roll(by radians: Float) {
+        orientation.roll(by: radians)
         pivot.orientation = simd_quatf(vector: orientation.quaternion)
     }
 

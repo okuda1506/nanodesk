@@ -24,7 +24,18 @@ final class MusicScreenRenderer {
     private var artworkImage: NSImage?
     private var scrollingTrackID: String?
     private var scrollStart: TimeInterval = 0
-    var titleIsScrolling: Bool { scrollingTrackID != nil }
+    private let flow: CoverFlowRenderer
+    var artworkChanged: (() -> Void)? {
+        didSet { flow.artworkChanged = artworkChanged }
+    }
+    var frameInterval: Duration? {
+        if flow.animating { return .microseconds(16_667) }
+        return scrollingTrackID == nil ? nil : .milliseconds(80)
+    }
+
+    init(service: any MusicService) { flow = CoverFlowRenderer(service: service) }
+
+    func suspendCoverFlow() { flow.leave() }
 
     func image(for session: MusicSession) -> CGImage? {
         if session.page != .playing || session.playback == nil { scrollingTrackID = nil }
@@ -42,6 +53,23 @@ final class MusicScreenRenderer {
         NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: true)
         defer { NSGraphicsContext.current = previous }
 
+        if let side = session.covers.side {
+            scrollingTrackID = nil
+            if side == .left {
+                context.translateBy(x: CGFloat(width), y: 0)
+                context.rotate(by: .pi / 2)
+            } else {
+                context.translateBy(x: 0, y: CGFloat(height))
+                context.rotate(by: -.pi / 2)
+            }
+            fill(.white, 0, 0, CGFloat(height), CGFloat(width))
+            let clock = Date.now.formatted(.dateTime.hour(.defaultDigits(amPM: .omitted)).minute())
+            let heading = session.covers.trackIndex == nil ? clock : session.covers.album?.title ?? clock
+            browseHeader(heading, playback: session.playback, tint: Self.rgb(26, 133, 198), landscape: true)
+            flow.draw(session)
+            return context.makeImage()
+        }
+        flow.leave()
         switch session.page {
         case .home, .music:
             menu(session)
@@ -113,19 +141,25 @@ final class MusicScreenRenderer {
         }
     }
 
-    private func browseHeader(_ title: String, playback: MusicPlayback?, tint: NSColor) {
-        gradient(CGRect(x: 0, y: 0, width: 240, height: 19),
+    private func browseHeader(_ title: String, playback: MusicPlayback?, tint: NSColor, landscape: Bool = false) {
+        let w: CGFloat = landscape ? 376 : 240
+        gradient(CGRect(x: 0, y: 0, width: w, height: 19),
                  top: Self.rgb(251, 251, 251), bottom: Self.rgb(173, 173, 173))
-        fill(Self.rgb(121, 122, 122), 0, 19, 240, 1)
-        menuLabel(title, in: CGRect(x: 8, y: 0, width: 178, height: 19),
+        fill(Self.rgb(121, 122, 122), 0, 19, w, 1)
+        if landscape {
+            text(title, at: CGRect(x: 52, y: 1, width: w - 104, height: 18),
+                 size: 13, weight: .bold, color: .black, align: .center)
+        } else {
+            menuLabel(title, in: CGRect(x: 8, y: 0, width: 178, height: 19),
                   font: .boldSystemFont(ofSize: 13), color: .black)
+        }
         if let playback {
-            menuLabel(playback.isPlaying ? "▶" : "Ⅱ", in: CGRect(x: 189, y: 0, width: 14, height: 19),
+            menuLabel(playback.isPlaying ? "▶" : "Ⅱ", in: CGRect(x: w - 51, y: 0, width: 14, height: 19),
                       font: .systemFont(ofSize: 10), color: tint)
         }
-        fill(Self.rgb(74, 77, 70), 210, 4, 20, 10)
-        fill(Self.rgb(108, 110, 105), 230, 7, 2, 4)
-        gradient(CGRect(x: 211, y: 5, width: 18, height: 8),
+        fill(Self.rgb(74, 77, 70), w - 30, 4, 20, 10)
+        fill(Self.rgb(108, 110, 105), w - 10, 7, 2, 4)
+        gradient(CGRect(x: w - 29, y: 5, width: 18, height: 8),
                  top: Self.rgb(204, 239, 153), bottom: Self.rgb(94, 162, 43))
     }
 

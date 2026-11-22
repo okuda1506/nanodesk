@@ -1,5 +1,7 @@
 import Foundation
 
+enum LandscapeSide { case left, right }
+
 struct DeviceOrientation {
     // Imaginary x, y, z followed by real w, matching simd_quatf on macOS.
     private(set) var quaternion = SIMD4<Float>(0, 0, 0, 1)
@@ -13,6 +15,24 @@ struct DeviceOrientation {
         let aroundRight = SIMD4<Float>(sin(pitch), 0, 0, cos(pitch))
         let next = multiply(multiply(aroundUp, aroundRight), quaternion)
         quaternion = next / sqrt(next.x * next.x + next.y * next.y + next.z * next.z + next.w * next.w)
+    }
+
+    mutating func roll(by radians: Float) {
+        guard radians.isFinite else { return }
+        let spin = SIMD4<Float>(0, 0, sin(radians / 2), cos(radians / 2))
+        let next = multiply(spin, quaternion)
+        quaternion = next / sqrt((next * next).sum())
+    }
+
+    func landscape(keeping side: LandscapeSide?) -> LandscapeSide? {
+        // Screen-right in device coordinates gives the horizontal component of its up axis.
+        let upX = worldToDevice(SIMD3(1, 0, 0)).y
+        let upY = worldToDevice(SIMD3(0, 1, 0)).y
+        guard worldToDevice(SIMD3(0, 0, 1)).z > 0.45 else { return side }
+        let angle = atan2(-upX, upY) * 180 / .pi
+        let threshold: Float = side == nil ? 68 : 53
+        guard abs(angle) >= threshold, abs(angle) <= 180 - threshold else { return nil }
+        return angle > 0 ? .left : .right
     }
 
     func worldToDevice(_ world: SIMD3<Float>) -> SIMD3<Float> {

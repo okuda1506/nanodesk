@@ -25,8 +25,13 @@ private actor MockMusic: MusicService {
         return library
     }
 
-    func play(_ id: String, preservingCurrent: Bool = false) async throws -> MusicPlayback {
-        if preservingCurrent, let current, current.track.id == id { return current }
+    func play(_ id: String, intent: MusicPlayIntent = .transport) async throws -> MusicPlayback {
+        if intent != .transport, let current, current.track.id == id {
+            if intent == .selectAlbumTrack, !current.isPlaying {
+                return try await togglePlayback()!
+            }
+            return current
+        }
         guard let track = library.first(where: { $0.id == id }), id != deniedTrack else {
             throw MusicIssue.cannotPlay
         }
@@ -198,10 +203,11 @@ struct MusicInteractionTests {
         #expect(session.menuItems == [
             .coverFlow, .geniusMix, .playlists, .artists, .albums, .songs, .genres, .composers, .audiobooks, .search
         ])
+        session.scroll(steps: 1)
         await session.press(.select)
-        #expect(session.page == .music && session.selection == 0 && session.notice != nil)
+        #expect(session.page == .music && session.selection == 1 && session.notice != nil)
         #expect(await service.libraryRequests == 0)
-        session.scroll(steps: 5)
+        session.scroll(steps: 4)
         #expect(session.menuItems[session.selection] == .songs && session.notice == nil)
         await session.press(.select)
         #expect(session.page == .songs)
@@ -353,6 +359,121 @@ struct MusicInteractionTests {
         #expect(session.page == .songs)
         #expect(session.playback == nil)
         #expect(session.notice == MusicIssue.cannotPlay.message)
+    }
+
+    @Test(arguments: [MusicSession.Page.home, .music, .songs, .playing])
+    func coverFlowRotatesFromEveryMusicPageAndRestoresTheHighlight(page: MusicSession.Page) async throws {
+        let service = MockMusic([first, second])
+        let session = MusicSession(service: service)
+        if page == .music { await session.press(.select) }
+        if page == .songs { await openSongs(in: session) }
+        if page == .playing {
+            _ = try await service.play(second.id)
+            session.scroll(steps: 9)
+            await session.press(.select)
+        }
+        session.scroll(steps: 1)
+        let highlight = session.selection
+        session.setLandscape(.left)
+        await waitForCovers(in: session)
+        #expect(session.covers.albums.count == 2)
+        let index = session.covers.index
+        session.setLandscape(.right)
+        #expect(session.covers.index == index && session.covers.side == .right)
+        session.setLandscape(nil)
+        #expect(session.covers.side == nil && session.page == page && session.selection == highlight)
+        #expect(await service.plays.count == (page == .playing ? 1 : 0))
+    }
+
+    @Test func menuOpensCoversAndCenterPlaysTheSelectedAlbumTrack() async {
+        let t1 = MusicTrack(id: "1", title: "First", artist: "A", album: "Record", trackNumber: 1)
+        let t2 = MusicTrack(id: "2", title: "Second", artist: "A", album: "Record", trackNumber: 2)
+        let service = MockMusic([t2, t1])
+        let session = MusicSession(service: service)
+        var turns: [LandscapeSide?] = []
+        session.orientDevice = { turns.append($0) }
+        await session.press(.select)
+        await session.press(.select)
+        await waitForCovers(in: session)
+        #expect(turns == [.left] && session.covers.album?.tracks == [t1, t2])
+        await session.press(.select)
+        session.scroll(steps: 1)
+        #expect(await service.plays.isEmpty && session.covers.selectedTrack == t2)
+        await session.press(.select)
+        #expect(await service.plays == ["2"] && session.playingTrackNumber == 1)
+        #expect(session.covers.selectedTrack == t2 && session.playback?.isPlaying == true)
+        await service.advance(to: 32)
+        await session.press(.playPause)
+        await session.press(.select)
+        #expect(session.playback?.elapsed == 32 && session.playback?.isPlaying == true)
+        #expect(await service.plays == ["2"])
+        await session.press(.menu)
+        #expect(session.covers.trackIndex == nil && session.covers.side == .left)
+        await session.press(.menu)
+        #expect(turns == [.left, nil] && session.page == .playing)
+        await session.press(.menu)
+        #expect(session.page == .music && session.selection == 0)
+    }
+
+    @Test func coverFlowIndexesAlbumArtistsCompilationsDiscOrderAndNonletters() {
+        let tracks = [
+            MusicTrack(id: "4", title: "Two", artist: "Guest 1", album: "Set", albumArtist: "Écho", discNumber: 2, trackNumber: 1),
+            MusicTrack(id: "3", title: "One", artist: "Guest 2", album: "Set", albumArtist: "Écho", discNumber: 1, trackNumber: 2),
+            MusicTrack(id: "5", title: "Title", artist: "Zulu", album: "Set"),
+            MusicTrack(id: "6", title: "Title", artist: "123", album: "Numbers"),
+            MusicTrack(id: "7", title: "Title", artist: "!Band", album: "Symbols"),
+            MusicTrack(id: "8", title: "Title", artist: "かな", album: "歌", sortAlbumArtist: "Kana"),
+            MusicTrack(id: "9", title: "Guest A", artist: "A", album: "Collection", isCompilation: true),
+            MusicTrack(id: "10", title: "Guest B", artist: "B", album: "Collection", isCompilation: true)
+        ]
+        let catalog = MusicAlbum.catalog(tracks + [tracks[0]])
+        #expect(catalog.map(\.initial) == ["E", "K", "K", "Z", "#", "#"])
+        #expect(catalog[0].tracks.map(\.id) == ["3", "4"])
+        #expect(catalog.first { $0.title == "Collection" }?.tracks.count == 2)
+    }
+
+    @Test func rapidWheelBrowsesInitialsAndReturnsToIndividualAlbums() async throws {
+        let names = ["A", "A", "A", "A", "A", "B", "Z", "9"]
+        let tracks = names.enumerated().map { MusicTrack(id: String($0.offset), title: "曲", artist: $0.element, album: "LP \($0.offset)") }
+        let session = MusicSession(service: MockMusic(tracks))
+        session.setLandscape(.left)
+        await waitForCovers(in: session)
+        for step in 0..<4 { session.scroll(steps: 1, at: Double(step) * 0.028) }
+        #expect(session.covers.scanning && session.covers.album?.initial == "A")
+        session.scroll(steps: 1, at: 0.13)
+        #expect(session.covers.index == 5)
+        session.scroll(steps: 5, at: 0.17)
+        #expect(session.covers.album?.initial == "#")
+        session.scroll(steps: -2, at: 0.20)
+        #expect(session.covers.index == 5)
+        session.covers.endWheel()
+        #expect(!session.covers.scanning)
+        session.scroll(steps: -1, at: 1)
+        #expect(session.covers.index == 4 && !session.covers.scanning)
+        session.scroll(steps: 5, at: 1.04)
+        #expect(session.covers.scanning)
+        try await Task.sleep(for: .milliseconds(400))
+        #expect(!session.covers.scanning)
+    }
+
+    @Test func coverFlowCanRetryReadFailuresAndEmptyLibraries() async {
+        let service = MockMusic([], issue: .denied)
+        let session = MusicSession(service: service)
+        session.setLandscape(.right)
+        await waitForCovers(in: session)
+        #expect(session.covers.notice == MusicIssue.denied.message)
+        await service.restoreAccess()
+        await session.press(.select)
+        await waitForCovers(in: session)
+        #expect(session.covers.notice == "ライブラリに曲がありません。")
+        session.setLandscape(nil)
+        #expect(session.page == .home && session.notice == nil)
+    }
+
+    private func waitForCovers(in session: MusicSession) async {
+        let timeout = ContinuousClock.now + .seconds(3)
+        while session.covers.loading && ContinuousClock.now < timeout { await Task.yield() }
+        #expect(!session.covers.loading)
     }
 
     private func openSongs(in session: MusicSession) async {

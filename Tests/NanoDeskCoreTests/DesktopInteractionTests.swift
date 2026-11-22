@@ -64,3 +64,36 @@ struct DesktopInteractionTests {
         #expect(saved.frame(in: [], preferred: nil) == nil)
     }
 }
+
+struct CoverFlowOrientationTests {
+    @Test func bothQuarterTurnsEnterWithHysteresisAndSideInspectionDoesNotEnter() {
+        var orientation = DeviceOrientation()
+        orientation.drag(horizontal: .pi / 2 / DeviceOrientation.radiansPerPoint, vertical: 0)
+        #expect(orientation.landscape(keeping: nil) == nil)
+        for side: LandscapeSide in [.left, .right] {
+            orientation = DeviceOrientation()
+            let direction: Float = side == .left ? 1 : -1
+            orientation.roll(by: direction * .pi / 2)
+            #expect(orientation.landscape(keeping: nil) == side)
+            orientation.roll(by: -direction * .pi / 6)
+            #expect(orientation.landscape(keeping: side) == side)
+            #expect(orientation.landscape(keeping: nil) == nil)
+            orientation.roll(by: -direction * .pi / 6)
+            #expect(orientation.landscape(keeping: side) == nil)
+        }
+    }
+
+    @Test func sleeveMotionPreservesPositionAndVelocityWhenTheWheelReverses() {
+        var motion = CoverFlowMotion()
+        motion.move(to: 3, at: 0, snap: false)
+        let midway = motion.sample(at: 0.08)
+        #expect(midway.position > 0 && midway.position < 3 && midway.velocity > 0)
+        motion.move(to: 0, at: 0.08, snap: false)
+        let reversed = motion.sample(at: 0.08)
+        #expect(abs(reversed.position - midway.position) < 1e-9)
+        #expect(abs(reversed.velocity - midway.velocity) < 1e-9)
+        #expect(motion.sample(at: 1) == (0, 0, false))
+        motion.move(to: 150, at: 1, snap: true)
+        #expect(motion.sample(at: 1) == (150, 0, false))
+    }
+}

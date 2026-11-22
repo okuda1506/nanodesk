@@ -48,6 +48,17 @@
 			isa = PBXBuildFile;
 			fileRef = 000000000000000000000067 /* MusicAppBridge.swift */;
 		};
+		000000000000000000000A02 /* CoverFlowRenderer.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CoverFlowRenderer.swift";
+			path = "Sources/NanoDesk/CoverFlowRenderer.swift";
+			sourceTree = "<group>";
+		};
+		000000000000000000000B02 /* CoverFlowRenderer.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000A02 /* CoverFlowRenderer.swift */;
+		};
 		000000000000000000000068 /* MusicScreenRenderer.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -125,6 +136,17 @@
 			isa = PBXBuildFile;
 			fileRef = 00000000000000000000006E /* DeviceOrientation.swift */;
 		};
+		000000000000000000000A01 /* CoverFlow.swift */ = {
+			isa = PBXFileReference;
+			lastKnownFileType = sourcecode.swift;
+			name = "CoverFlow.swift";
+			path = "Sources/NanoDeskCore/CoverFlow.swift";
+			sourceTree = "<group>";
+		};
+		000000000000000000000B01 /* CoverFlow.swift in Sources */ = {
+			isa = PBXBuildFile;
+			fileRef = 000000000000000000000A01 /* CoverFlow.swift */;
+		};
 		00000000000000000000006F /* MusicSession.swift */ = {
 			isa = PBXFileReference;
 			lastKnownFileType = sourcecode.swift;
@@ -186,13 +208,13 @@
 		};
 		000000000000000000000003 /* App */ = {
 			isa = PBXGroup;
-			children = (000000000000000000000064 /* DesktopWindowController.swift */, 000000000000000000000065 /* DeviceCanvas.swift */, 000000000000000000000066 /* DeviceScene.swift */, 000000000000000000000067 /* MusicAppBridge.swift */, 000000000000000000000068 /* MusicScreenRenderer.swift */, 000000000000000000000069 /* NanoDeskApp.swift */, 00000000000000000000006A /* ReflectionEnvironment.swift */, 000000000000000000000071 /* Info.plist */, 000000000000000000000072 /* NanoDesk.entitlements */,);
+			children = (000000000000000000000064 /* DesktopWindowController.swift */, 000000000000000000000065 /* DeviceCanvas.swift */, 000000000000000000000066 /* DeviceScene.swift */, 000000000000000000000067 /* MusicAppBridge.swift */, 000000000000000000000A02 /* CoverFlowRenderer.swift */, 000000000000000000000068 /* MusicScreenRenderer.swift */, 000000000000000000000069 /* NanoDeskApp.swift */, 00000000000000000000006A /* ReflectionEnvironment.swift */, 000000000000000000000071 /* Info.plist */, 000000000000000000000072 /* NanoDesk.entitlements */,);
 			name = App;
 			sourceTree = "<group>";
 		};
 		000000000000000000000004 /* Core */ = {
 			isa = PBXGroup;
-			children = (00000000000000000000006B /* ClickWheel.swift */, 00000000000000000000006C /* DesktopPlacement.swift */, 00000000000000000000006D /* DeviceHitTest.swift */, 00000000000000000000006E /* DeviceOrientation.swift */, 00000000000000000000006F /* MusicSession.swift */,);
+			children = (00000000000000000000006B /* ClickWheel.swift */, 00000000000000000000006C /* DesktopPlacement.swift */, 00000000000000000000006D /* DeviceHitTest.swift */, 00000000000000000000006E /* DeviceOrientation.swift */, 000000000000000000000A01 /* CoverFlow.swift */, 00000000000000000000006F /* MusicSession.swift */,);
 			name = Core;
 			sourceTree = "<group>";
 		};
@@ -211,7 +233,7 @@
 		000000000000000000000009 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = (0000000000000000000000C8 /* DesktopWindowController.swift in Sources */, 0000000000000000000000C9 /* DeviceCanvas.swift in Sources */, 0000000000000000000000CA /* DeviceScene.swift in Sources */, 0000000000000000000000CB /* MusicAppBridge.swift in Sources */, 0000000000000000000000CC /* MusicScreenRenderer.swift in Sources */, 0000000000000000000000CD /* NanoDeskApp.swift in Sources */, 0000000000000000000000CE /* ReflectionEnvironment.swift in Sources */, 0000000000000000000000CF /* ClickWheel.swift in Sources */, 0000000000000000000000D0 /* DesktopPlacement.swift in Sources */, 0000000000000000000000D1 /* DeviceHitTest.swift in Sources */, 0000000000000000000000D2 /* DeviceOrientation.swift in Sources */, 0000000000000000000000D3 /* MusicSession.swift in Sources */,);
+			files = (0000000000000000000000C8 /* DesktopWindowController.swift in Sources */, 0000000000000000000000C9 /* DeviceCanvas.swift in Sources */, 0000000000000000000000CA /* DeviceScene.swift in Sources */, 0000000000000000000000CB /* MusicAppBridge.swift in Sources */, 000000000000000000000B02 /* CoverFlowRenderer.swift in Sources */, 0000000000000000000000CC /* MusicScreenRenderer.swift in Sources */, 0000000000000000000000CD /* NanoDeskApp.swift in Sources */, 0000000000000000000000CE /* ReflectionEnvironment.swift in Sources */, 0000000000000000000000CF /* ClickWheel.swift in Sources */, 0000000000000000000000D0 /* DesktopPlacement.swift in Sources */, 0000000000000000000000D1 /* DeviceHitTest.swift in Sources */, 0000000000000000000000D2 /* DeviceOrientation.swift in Sources */, 000000000000000000000B01 /* CoverFlow.swift in Sources */, 0000000000000000000000D3 /* MusicSession.swift in Sources */,);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		00000000000000000000000A /* Frameworks */ = {
