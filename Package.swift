@@ -7,6 +7,7 @@ let package = Package(
     products: [.library(name: "NanoDeskCore", targets: ["NanoDeskCore"])],
     targets: [
         .target(name: "NanoDeskCore"),
-        .testTarget(name: "NanoDeskCoreTests", dependencies: ["NanoDeskCore"])
+        .target(name: "CameraSensor"),
+        .testTarget(name: "NanoDeskCoreTests", dependencies: ["NanoDeskCore", "CameraSensor"])
     ]
 )

@@ -92,7 +92,7 @@ If permission was denied, use System Settings → Privacy & Security → Automat
 
 Select **ビデオカメラ** on the home wheel and press center. Allow camera access in macOS. The LCD opens its iris after the first frame arrives. Allow microphone access for sound, or record with **音声なし** shown. Press center once to record and again to save. MENU returns home and finalizes an active recording. The red dot and timer mark recording.
 
-NanoDesk writes H.264 MP4 files to the Movies directory under **NanoDesk/Camera Roll/**. Recordings target 640 × 480 with AAC when a microphone is available. Capture requests 30 fps when supported. The portrait LCD shows a mirrored center crop of the camera feed. Saved video uses the landscape frame with mirroring off. Use **Open Camera Roll in Finder** in the NanoDesk menu to open the save folder.
+NanoDesk writes H.264 MP4 files to the Movies directory under **NanoDesk/Camera Roll/**. Recordings target 640 × 480 with AAC when a microphone is available. Capture requests 30 fps when supported. Both the viewfinder and recording use the same VGA frame with softer fine color detail, a gentle highlight roll-off and grain that increases in shadows. The portrait LCD shows a mirrored center crop of the camera feed. Saved video uses the landscape frame with mirroring off. Use **Open Camera Roll in Finder** in the NanoDesk menu to open the save folder.
 
 The default iris opening takes 0.8 seconds after a frame is ready. To tune it on a Mac, run `defaults write io.github.okuda1506.nanodesk CameraIrisDuration -float 1.2` and relaunch NanoDesk.
 
