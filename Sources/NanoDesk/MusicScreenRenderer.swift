@@ -153,7 +153,7 @@ final class MusicScreenRenderer {
             context.saveGState()
             context.addPath(blade)
             context.clip()
-            let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceGray(),
+            let grad = CGGradient(colorSpace: CGColorSpaceCreateDeviceGray(),
                                   colorComponents: [0.34, 1, 0.13, 1], locations: [0, 1], count: 2)
             if let grad {
                 context.drawLinearGradient(grad, start: inner(a), end: point(radius * 0.88, b),
