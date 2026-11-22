@@ -28,6 +28,8 @@ The script builds and locally signs the Release version, installs it at `~/Appli
 
 ## Play music
 
+Songs you buy from the iTunes Store appear under **曲** (Songs) on the NanoDesk iPod once they’re in your Mac’s Music library. Reopen **曲** to see newly added songs.
+
 Open **ミュージック** (Music) → **曲** (Songs). Allow NanoDesk to control Music in the macOS Automation prompt. Scroll to a playable song in your Music library and press center to open **再生中** (Now Playing). Selecting the current song opens its playback screen at the current position. The bottom, left, and right wheel buttons control play/pause, previous, and next even while browsing. If access was denied, enable Music under **System Settings → Privacy & Security → Automation → NanoDesk**, then reopen **曲**.
 
 ## Browse albums in Cover Flow
