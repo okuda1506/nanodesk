@@ -46,6 +46,11 @@ struct MusicAppBridge: MusicService {
         }
     }
 
+    func pauseForCamera() async throws -> MusicPlayback? {
+        guard await Self.isMusicRunning() else { return nil }
+        return try await work { try Self.playback(Self.execute(.pauseForCamera)) }
+    }
+
     func snapshot() async throws -> MusicPlayback? {
         guard await Self.isMusicRunning() else { return nil }
         return try await work { try Self.playback(Self.execute(.snapshot)) }
@@ -139,7 +144,7 @@ struct MusicAppBridge: MusicService {
     }
 
     private enum Command {
-        case tracks, play, selectTrack, selectAlbumTrack, snapshot, toggle, artwork
+        case tracks, play, selectTrack, selectAlbumTrack, snapshot, pauseForCamera, toggle, artwork
 
         var source: String {
             let readPlayback = """
@@ -199,6 +204,8 @@ struct MusicAppBridge: MusicService {
                 } else {
                     code = startTrack + "\n" + readPlayback
                 }
+            case .pauseForCamera:
+                code = "if player state is playing then pause\n" + readPlayback
             case .snapshot:
                 code = readPlayback
             case .toggle:

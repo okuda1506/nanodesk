@@ -66,6 +66,7 @@ enum MusicPlayIntent: Sendable {
 protocol MusicService: Sendable {
     func tracks() async throws -> [MusicTrack]
     func play(_ id: String, intent: MusicPlayIntent) async throws -> MusicPlayback
+    func pauseForCamera() async throws -> MusicPlayback?
     func snapshot() async throws -> MusicPlayback?
     /// Toggle an active or paused track. Return nil when Music has no current playback.
     func togglePlayback() async throws -> MusicPlayback?
@@ -74,7 +75,7 @@ protocol MusicService: Sendable {
 
 @MainActor
 final class MusicSession {
-    enum Page: Hashable { case home, music, songs, playing }
+    enum Page: Hashable { case home, music, songs, playing, camera }
 
     enum MenuItem: String {
         case music = "ミュージック", videos = "ビデオ", photos = "写真", podcast = "Podcast"
@@ -110,6 +111,20 @@ final class MusicSession {
     private var artworkID: String?
     var changed: (() -> Void)?
 
+    enum CameraAction { case open, center, close }
+    var cameraAction: ((CameraAction) -> Void)?
+
+    func leaveCamera() {
+        guard page == .camera else { return }
+        cameraAction?(.close)
+        transition(to: .home)
+    }
+
+    func reportCameraSaveError(_ message: String) {
+        notice = message
+        changed?()
+    }
+
     let covers: CoverFlowBrowser
     var orientDevice: ((LandscapeSide?) -> Void)?
 
@@ -128,7 +143,7 @@ final class MusicSession {
     }
 
     func setLandscape(_ side: LandscapeSide?) {
-        guard !isHeld, side != covers.side else { return }
+        guard !isHeld, page != .camera, side != covers.side else { return }
         notice = nil
         covers.orient(side, currentTrack: playback?.track.id)
     }
@@ -137,7 +152,7 @@ final class MusicSession {
         switch page {
         case .home: Self.homeItems
         case .music: playback == nil ? Self.musicItems : Self.musicItems + [.playing]
-        case .songs, .playing: []
+        case .songs, .playing, .camera: []
         }
     }
 
@@ -157,7 +172,7 @@ final class MusicSession {
         let count = switch page {
         case .home, .music: menuItems.count
         case .songs: tracks.count
-        case .playing: 0
+        case .playing, .camera: 0
         }
         guard count > 0, steps != 0 else { return }
         let next = max(0, min(count - 1, selection + steps))
@@ -169,6 +184,11 @@ final class MusicSession {
 
     func press(_ button: WheelButton) async {
         guard !isHeld else { return }
+        if page == .camera {
+            if button == .menu { leaveCamera() }
+            if button == .select { cameraAction?(.center) }
+            return
+        }
         if covers.side != nil {
             switch button {
             case .menu:
@@ -196,7 +216,7 @@ final class MusicSession {
             notice = nil
             revision += 1
             page = switch page {
-            case .home, .music: .home
+            case .home, .music, .camera: .home
             case .songs: .music
             case .playing: playingBackPage
             }
@@ -209,6 +229,11 @@ final class MusicSession {
             switch page {
             case .home, .music:
                 switch menuItems[selection] {
+                case .camera:
+                    transition(to: .camera)
+                    cameraAction?(.open)
+                    let requested = revision
+                    if let paused = try? await service.pauseForCamera(), requested == revision { install(paused) }
                 case .music: transition(to: .music)
                 case .coverFlow:
                     orientDevice?(.left)
@@ -226,7 +251,7 @@ final class MusicSession {
                 } else {
                     await showSongs()
                 }
-            case .playing:
+            case .playing, .camera:
                 break
             }
         case .playPause, .previous, .next:
@@ -246,7 +271,7 @@ final class MusicSession {
             switch page {
             case .songs: guard !loadingSongs, !tracks.isEmpty else { return }
             case .playing: guard initial || playback != nil else { return }
-            case .home, .music: return
+            case .home, .music, .camera: return
             }
         } else if covers.album == nil { return }
         let requested = revision

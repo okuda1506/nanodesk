@@ -26,6 +26,11 @@ private final class NanoDeskDelegate: NSObject, NSApplicationDelegate, NSMenuDel
         Task { await loadDesktop() }
     }
 
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        let pending = desktop?.finishCameraBeforeQuit { sender.reply(toApplicationShouldTerminate: true) }
+        return pending == true ? .terminateLater : .terminateNow
+    }
+
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         desktop?.show()
         return true
@@ -53,6 +58,7 @@ private final class NanoDeskDelegate: NSObject, NSApplicationDelegate, NSMenuDel
         menu.autoenablesItems = false
         menu.delegate = self
         visibilityItem = add("Show Device", #selector(toggleVisibility), to: menu)
+        add("Open Camera Roll in Finder", #selector(openCameraRoll), to: menu)
         add("Reset Orientation", #selector(resetOrientation), to: menu)
         add("Reset Position", #selector(resetPosition), to: menu)
         menu.addItem(.separator())
@@ -83,6 +89,15 @@ private final class NanoDeskDelegate: NSObject, NSApplicationDelegate, NSMenuDel
         visibilityItem?.title = desktop?.visible == true ? "Hide Device" : "Show Device"
         topItem?.state = desktop?.alwaysOnTop == true ? .on : .off
         clickThroughItem?.state = desktop?.clickThrough == true ? .on : .off
+    }
+
+    @objc private func openCameraRoll() {
+        do {
+            let folder = try CameraCapture.movieFolder()
+            NSWorkspace.shared.open(folder)
+        } catch {
+            NSAlert(error: error).runModal()
+        }
     }
 
     @objc private func toggleVisibility() {

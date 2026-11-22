@@ -41,6 +41,11 @@ private actor MockMusic: MusicService {
         return next
     }
 
+    func pauseForCamera() async throws -> MusicPlayback? {
+        if current?.isPlaying == true { return try await togglePlayback() }
+        return current
+    }
+
     func snapshot() async throws -> MusicPlayback? {
         if let snapshotIssue { throw snapshotIssue }
         return current
@@ -518,6 +523,33 @@ struct MusicInteractionTests {
         #expect(session.covers.trackIndex == 0)
         session.setLandscape(nil)
         #expect(session.covers.side == nil)
+    }
+
+    @Test func cameraOwnsTheWheelAndReturnsToItsHighlightedHomeItem() async throws {
+        let service = MockMusic([first])
+        _ = try await service.play(first.id)
+        let session = MusicSession(service: service)
+        var actions: [MusicSession.CameraAction] = []
+        session.cameraAction = { actions.append($0) }
+        session.scroll(steps: 5)
+        #expect(session.menuItems[session.selection] == .camera)
+        await session.press(.select)
+        #expect(session.page == .camera && actions == [.open])
+        #expect(try await service.snapshot()?.isPlaying == false)
+        await session.press(.select)
+        session.setLandscape(.left)
+        session.scroll(steps: 1)
+        await session.press(.playPause)
+        #expect(session.covers.side == nil && actions == [.open, .center])
+        session.toggleHold()
+        await session.press(.select)
+        await session.press(.menu)
+        #expect(session.page == .camera && actions == [.open, .center])
+        session.toggleHold()
+        await session.press(.menu)
+        #expect(actions == [.open, .center, .close])
+        #expect(session.page == .home && session.menuItems[session.selection] == .camera)
+        #expect(try await service.snapshot()?.isPlaying == false)
     }
 
     private func waitForCovers(in session: MusicSession) async {

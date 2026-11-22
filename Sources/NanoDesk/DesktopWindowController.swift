@@ -11,6 +11,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     private let scene: DeviceScene
     private let canvas: DeviceCanvas
     private let music: MusicSession
+    private let camera = VideoCamera()
     private let screen: MusicScreenRenderer
     private var playbackPoll: Task<Void, Never>?
     private var screenUpdate: Task<Void, Never>?
@@ -31,7 +32,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         self.scene = scene
         let service = MusicAppBridge()
         self.music = MusicSession(service: service)
-        self.screen = MusicScreenRenderer(service: service)
+        self.screen = MusicScreenRenderer(service: service, camera: camera)
         let canvas = try DeviceCanvas(scene: scene)
         self.canvas = canvas
         var settings = UserDefaults.standard.data(forKey: Self.preferenceKey)
@@ -66,6 +67,9 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
             if let side { self.scene.roll(by: side == .left ? .pi / 2 : -.pi / 2) }
             self.canvas.requestFrame()
         }
+        music.cameraAction = { [weak self] action in self?.camera.handle(action) }
+        camera.changed = { [weak self] in self?.queueScreenUpdate() }
+        camera.saveError = { [weak self] message in self?.music.reportCameraSaveError(message) }
         music.changed = { [weak self] in self?.queueScreenUpdate() }
         NotificationCenter.default.addObserver(
             self, selector: #selector(repositionForScreens),
@@ -90,7 +94,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         applyPlacement()
         window?.orderFrontRegardless()
         canvas.requestFrame()
-        if music.covers.side != nil || screen.frameInterval != nil { queueScreenUpdate() }
+        if music.covers.side != nil || music.page == .camera || screen.frameInterval != nil { queueScreenUpdate() }
         if playbackPoll == nil {
             playbackPoll = Task { [weak self] in
                 var clockMinute = Calendar.current.component(.minute, from: .now)
@@ -106,7 +110,13 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
         }
     }
 
+    func finishCameraBeforeQuit(_ done: @escaping @MainActor @Sendable () -> Void) -> Bool {
+        music.leaveCamera()
+        return camera.finishBeforeQuit(done)
+    }
+
     func hide() {
+        music.leaveCamera()
         pointerUp(at: nil)
         playbackPoll?.cancel()
         playbackPoll = nil
@@ -232,7 +242,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     }
 
     private func queueScreenUpdate() {
-        if music.covers.side != nil, window?.occlusionState.contains(.visible) != true { return }
+        if (music.covers.side != nil || music.page == .camera), window?.occlusionState.contains(.visible) != true { return }
         screenDirty = true
         guard screenUpdate == nil else { return }
         screenUpdate = Task { [weak self] in
@@ -276,7 +286,7 @@ final class DesktopWindowController: NSWindowController, DeviceInput {
     @objc private func redrawOnReveal(_ notification: Notification) {
         canvas.requestFrame()
         if window?.occlusionState.contains(.visible) == true {
-            if music.covers.side != nil || screen.frameInterval != nil { queueScreenUpdate() }
+            if music.covers.side != nil || music.page == .camera || screen.frameInterval != nil { queueScreenUpdate() }
         } else {
             screen.suspendCoverFlow()
         }

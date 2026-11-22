@@ -2,7 +2,7 @@
 
 A native macOS app that brings a **fully rotatable, interactive 3D iPod nano (5th generation)** to your desktop.
 
-The desktop preview presents the approved 3D device in a transparent panel. Its original Japanese menus browse the local Mac's Music library and control playback through the click wheel. VGA capture is a later feature.
+The desktop preview presents the approved 3D device in a transparent panel. Its original Japanese menus browse the local Mac's Music library and control playback through the click wheel. The video camera records movies from the Mac camera.
 
 > **Project status** · The desktop preview and Japanese music flow are available for Mac validation. The [approved silver A1320 model](docs/MODEL_REVIEW.md) supplies its USDZ. See [implementation findings](docs/RISKS_AND_FINDINGS.md) for the checks performed so far.
 
@@ -73,7 +73,7 @@ Four locally stored photo references are now available in **[assets/references/p
 
 ## Development Workflow
 
-Use the Cloud Swift toolchain for portable tests and the Mac Xcode toolchain for the app and its desktop appearance. The [architecture notes](docs/ARCHITECTURE.md) explain how the two targets share code and which render is the visual baseline. Follow [the specification](docs/SPEC.md) for later features such as playlists and video capture.
+Use the Cloud Swift toolchain for portable tests and the Mac Xcode toolchain for the app and its desktop appearance. The [architecture notes](docs/ARCHITECTURE.md) explain how the two targets share code and which render is the visual baseline. Follow [the specification](docs/SPEC.md) for later features such as playlists.
 
 ### Clone the repository
 
@@ -88,15 +88,13 @@ With a playable track registered in **Music.app**, face the device front and tur
 
 If permission was denied, use System Settings → Privacy & Security → Automation → NanoDesk → Music, then press center again on **曲** to retry. If the item is not there, try opening **曲** again from the signed app. If the display shows an error code, record the number and the operation that produced it. Try playing the track in Music itself if playback fails. See [Music QA](docs/QA_CHECKLIST.md#mac-validation-for-the-music-flow) for the live checks.
 
-### Video setup (planned)
+### Record video
 
-Video Camera uses the **Mac's physical front-facing camera and microphone**, not the position or direction of the 3D rear camera model. macOS camera/microphone permission is required. The planned default save location is:
+Select **ビデオカメラ** on the home wheel and press center. Allow camera access in macOS. The LCD opens its iris after the first frame arrives. Allow microphone access for sound, or record with **音声なし** shown. Press center once to record and again to save. MENU returns home and finalizes an active recording. The red dot and timer mark recording.
 
-~~~text
-~/Movies/NanoDesk/Camera Roll/
-~~~
+NanoDesk writes H.264 MP4 files to the Movies directory under **NanoDesk/Camera Roll/**. Recordings target 640 × 480 with AAC when a microphone is available. Capture requests 30 fps when supported. The portrait LCD shows a mirrored center crop of the camera feed. Saved video uses the landscape frame with mirroring off. Use **Open Camera Roll in Finder** in the NanoDesk menu to open the save folder.
 
-The app must honor macOS sandbox/file-access restrictions and report actual recording characteristics rather than assuming the target format was achieved.
+The default iris opening takes 0.8 seconds after a frame is ready. To tune it on a Mac, run `defaults write io.github.okuda1506.nanodesk CameraIrisDuration -float 1.2` and relaunch NanoDesk.
 
 ## Installation (After Development)
 

@@ -24,16 +24,20 @@ final class MusicScreenRenderer {
     private var artworkImage: NSImage?
     private var scrollingTrackID: String?
     private var scrollStart: TimeInterval = 0
+    private let camera: VideoCamera
     private let flow: CoverFlowRenderer
     var artworkChanged: (() -> Void)? {
         didSet { flow.artworkChanged = artworkChanged }
     }
     var frameInterval: Duration? {
-        if flow.animating { return .microseconds(16_667) }
+        if flow.animating || camera.isOpening { return .microseconds(16_667) }
         return scrollingTrackID == nil ? nil : .milliseconds(80)
     }
 
-    init(service: any MusicService) { flow = CoverFlowRenderer(service: service) }
+    init(service: any MusicService, camera: VideoCamera) {
+        self.camera = camera
+        flow = CoverFlowRenderer(service: service)
+    }
 
     func suspendCoverFlow() { flow.leave() }
 
@@ -78,8 +82,89 @@ final class MusicScreenRenderer {
             songs(session)
         case .playing:
             nowPlaying(session)
+        case .camera:
+            viewfinder(in: context)
         }
         return context.makeImage()
+    }
+
+    private func viewfinder(in context: CGContext) {
+        let lcd = CGRect(x: 0, y: 0, width: width, height: height)
+        fill(Self.rgb(30, 32, 34), 0, 0, lcd.width, lcd.height)
+        if case .failed(let reason) = camera.finder.phase {
+            message(reason, color: .white, y: 132, height: 118, size: 15)
+            text("MENUで戻る", at: CGRect(x: 8, y: 338, width: 224, height: 20),
+                 size: 13, color: .lightGray, align: .center)
+            return
+        }
+        let now = ProcessInfo.processInfo.systemUptime
+        let aperture = camera.aperture(at: now)
+        if let image = camera.frame {
+            NSImage(cgImage: image, size: lcd.size).draw(in: lcd, from: .zero, operation: .copy,
+                fraction: 1, respectFlipped: true, hints: nil)
+            let elapsed: Int
+            let recording: Bool
+            if case .recording(let start) = camera.finder.phase {
+                recording = true
+                elapsed = Int(max(0, now - start))
+            } else {
+                recording = false
+                elapsed = 0
+            }
+            let timer = String(format: "%02d:%02d", elapsed / 60, elapsed % 60)
+            let badge = CGRect(x: 166, y: 6, width: 68, height: 22)
+            NSColor.black.withAlphaComponent(0.58).setFill()
+            NSBezierPath(roundedRect: badge, xRadius: 3, yRadius: 3).fill()
+            if recording && (now.truncatingRemainder(dividingBy: 1) < 0.65) {
+                NSColor.systemRed.setFill()
+                NSBezierPath(ovalIn: CGRect(x: 172, y: 13, width: 8, height: 8)).fill()
+            }
+            text(timer, at: CGRect(x: 181, y: 8, width: 49, height: 19), size: 14,
+                 weight: .semibold, color: .white, align: .center)
+            let status = camera.finder.phase == .saving ? "保存中…" : (camera.hasAudio ? "" : "音声なし")
+            if !status.isEmpty {
+                fill(NSColor.black.withAlphaComponent(0.58), 6, 347, 70, 22)
+                text(status, at: CGRect(x: 8, y: 349, width: 66, height: 19), size: 13, color: .white, align: .center)
+            }
+        }
+        if aperture < 1 { drawIris(aperture, in: lcd, context: context) }
+    }
+
+    private func drawIris(_ opening: Double, in rect: CGRect, context: CGContext) {
+        let count = 7
+        let step = 2 * Double.pi / Double(count)
+        let radius = hypot(rect.midX, rect.midY) / cos(step / 2) + 2
+        func point(_ radius: Double, _ angle: Double) -> CGPoint {
+            CGPoint(x: rect.midX + radius * cos(angle), y: rect.midY + radius * sin(angle))
+        }
+        func inner(_ angle: Double) -> CGPoint { point(radius * opening, angle) }
+        func bend(_ angle: Double) -> CGPoint { point(radius * (0.64 + opening * 0.55), angle + 0.48) }
+        func outer(_ angle: Double) -> CGPoint { point(radius * 1.9, angle + 0.64) }
+        for index in 0..<count {
+            let a = Double(index) * step - 0.48 + 0.40 * opening
+            let b = a + step
+            let blade = CGMutablePath()
+            blade.move(to: inner(a))
+            blade.addLine(to: inner(b))
+            blade.addQuadCurve(to: outer(b), control: bend(b))
+            blade.addLine(to: outer(a))
+            blade.addQuadCurve(to: inner(a), control: bend(a))
+            blade.closeSubpath()
+            context.saveGState()
+            context.addPath(blade)
+            context.clip()
+            let grad = CGGradient(colorsSpace: CGColorSpaceCreateDeviceGray(),
+                                  colorComponents: [0.34, 1, 0.13, 1], locations: [0, 1], count: 2)
+            if let grad {
+                context.drawLinearGradient(grad, start: inner(a), end: point(radius * 0.88, b),
+                                           options: [.drawsBeforeStartLocation, .drawsAfterEndLocation])
+            }
+            context.addPath(blade)
+            context.setStrokeColor(gray: 0.11, alpha: 0.85)
+            context.setLineWidth(1.5)
+            context.strokePath()
+            context.restoreGState()
+        }
     }
 
     private func menu(_ session: MusicSession) {

@@ -24,5 +24,9 @@
     <true/>
     <key>NSAppleEventsUsageDescription</key>
     <string>NanoDesk uses Automation to read song information and control playback in Music.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>ビデオカメラの液晶プレビューと動画の撮影にカメラを使用します。</string>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>撮影する動画に音声を録音します。</string>
 </dict>
 </plist>
