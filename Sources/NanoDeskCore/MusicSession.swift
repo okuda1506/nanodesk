@@ -58,6 +58,7 @@ protocol MusicService: Sendable {
     func tracks() async throws -> [MusicTrack]
     func play(_ id: String) async throws -> MusicPlayback
     func snapshot() async throws -> MusicPlayback?
+    /// Toggle an active or paused track. Return nil when Music has no current playback.
     func togglePlayback() async throws -> MusicPlayback?
     func artwork(for id: String) async throws -> Data?
 }
@@ -156,24 +157,20 @@ final class MusicSession {
                     changed?()
                 }
             case .songs:
-                if tracks.indices.contains(selection) { await play(tracks[selection].id) }
-                else if notice != nil { await showSongs() }
+                if tracks.indices.contains(selection) {
+                    let id = tracks[selection].id
+                    await run { try await self.play(id, openPlayer: true, requested: $0) }
+                } else {
+                    await showSongs()
+                }
             case .playing:
                 break
             }
-        case .playPause:
-            guard page == .playing, playback != nil else { return }
-            await run { requested in
-                let value = try await self.service.togglePlayback()
-                if requested == self.revision { self.install(value) }
+        case .playPause, .previous, .next:
+            let startIndex = page == .songs ? selection : 0
+            await run(keepNotice: page == .songs && tracks.isEmpty) { requested in
+                try await self.transport(button, startIndex: startIndex, requested: requested)
             }
-        case .previous, .next:
-            guard page == .playing,
-                  let current = playback?.track.id, let index = tracks.firstIndex(where: { $0.id == current }) else {
-                return
-            }
-            let next = index + (button == .next ? 1 : -1)
-            if tracks.indices.contains(next) { await play(tracks[next].id) }
         case .menu:
             break
         }
@@ -215,22 +212,24 @@ final class MusicSession {
     private func showSongs() async {
         loadingSongs = true
         if page != .songs { transition(to: .songs) }
-        await run { requested in
-            let list: [MusicTrack]
-            do { list = try await self.service.tracks() }
-            catch {
-                if requested == self.revision { self.tracks = []; self.selections[.songs] = nil }
-                throw error
-            }
-            guard requested == self.revision else { return }
-            var seen = Set<String>()
-            let previous = self.selections[.songs, default: 0]
-            let selected = self.tracks.indices.contains(previous) ? self.tracks[previous].id : nil
-            self.tracks = list.filter { !$0.id.isEmpty && seen.insert($0.id).inserted }
-            self.selections[.songs] = selected.flatMap { id in self.tracks.firstIndex { $0.id == id } } ?? 0
-            if self.tracks.isEmpty { self.notice = "ライブラリに曲がありません。" }
-        }
+        await run { try await self.reloadTracks(requested: $0) }
         if page == .songs { await refreshPlayback() }
+    }
+
+    private func reloadTracks(requested: Int) async throws {
+        let list: [MusicTrack]
+        do { list = try await service.tracks() }
+        catch {
+            if requested == revision { tracks = []; selections[.songs] = nil }
+            throw error
+        }
+        guard requested == revision else { return }
+        var seen = Set<String>()
+        let previous = selections[.songs, default: 0]
+        let selected = tracks.indices.contains(previous) ? tracks[previous].id : nil
+        tracks = list.filter { !$0.id.isEmpty && seen.insert($0.id).inserted }
+        selections[.songs] = selected.flatMap { id in tracks.firstIndex { $0.id == id } } ?? 0
+        notice = tracks.isEmpty ? "ライブラリに曲がありません。" : nil
     }
 
     private func showPlaying() async {
@@ -239,20 +238,47 @@ final class MusicSession {
         await refreshPlayback(initial: true)
     }
 
-    private func play(_ id: String) async {
-        await run { requested in
-            let value = try await self.service.play(id)
-            guard self.revision == requested else { return }
-            if self.page != .playing {
-                self.playingBackPage = self.page
-                self.transition(to: .playing)
+    private func transport(_ button: WheelButton, startIndex: Int, requested: Int) async throws {
+        if button == .playPause {
+            let current = try await service.togglePlayback()
+            install(current)
+            if current != nil {
+                await loadArtworkIfNeeded()
+                return
             }
-            if let index = self.tracks.firstIndex(where: { $0.id == id }) {
-                self.selections[.songs] = index
-            }
-            self.install(value)
-            await self.loadArtworkIfNeeded()
+        } else {
+            let current = try await service.snapshot()
+            install(current)
+            guard current != nil else { return }
         }
+        guard revision == requested else { return }
+        if tracks.isEmpty { try await reloadTracks(requested: requested) }
+        guard revision == requested, !tracks.isEmpty else { return }
+
+        let index: Int
+        if button == .playPause {
+            index = startIndex
+        } else {
+            guard let number = playingTrackNumber else {
+                notice = "再生中の曲はこの曲一覧にありません。"
+                return
+            }
+            index = number - 1 + (button == .next ? 1 : -1)
+        }
+        guard tracks.indices.contains(index) else { return }
+        try await play(tracks[index].id, openPlayer: false, requested: requested)
+    }
+
+    private func play(_ id: String, openPlayer: Bool, requested: Int) async throws {
+        let value = try await service.play(id)
+        install(value)
+        guard revision == requested else { return }
+        if openPlayer {
+            playingBackPage = page
+            transition(to: .playing)
+        }
+        if page == .playing, let number = playingTrackNumber { selections[.songs] = number - 1 }
+        await loadArtworkIfNeeded()
     }
 
     private func install(_ value: MusicPlayback?) {
@@ -274,7 +300,7 @@ final class MusicSession {
     }
 
     private func loadArtworkIfNeeded() async {
-        guard page == .playing, let id = playback?.track.id, artworkID != id else { return }
+        guard page == .playing || page == .home, let id = playback?.track.id, artworkID != id else { return }
         artworkID = id
         if let data = try? await service.artwork(for: id), playback?.track.id == id {
             artwork = data
@@ -282,11 +308,11 @@ final class MusicSession {
         }
     }
 
-    private func run(_ work: (Int) async throws -> Void) async {
+    private func run(keepNotice: Bool = false, _ work: (Int) async throws -> Void) async {
         busy = true
         revision += 1
         let requested = revision
-        notice = nil
+        if !keepNotice { notice = nil }
         changed?()
         defer {
             busy = false

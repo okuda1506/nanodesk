@@ -66,7 +66,7 @@ final class MusicScreenRenderer {
         let selection = session.selection
         let first = max(0, selection - capacity + 1)
 
-        browseHeader(isHome ? "iPod" : "ミュージック", indicator: session.playback?.isPlaying == true ? "▶" : nil,
+        browseHeader(isHome ? "iPod" : "ミュージック", playback: session.playback,
                      tint: Self.rgb(55, 78, 99))
 
         let font = NSFont(name: "HiraginoSans-W6", size: 17.5) ?? .boldSystemFont(ofSize: 17.5)
@@ -102,21 +102,25 @@ final class MusicScreenRenderer {
             }
         }
         if let notice = session.notice {
-            let footer = CGRect(x: 0, y: CGFloat(height) - 30, width: screenWidth, height: 30)
-            fill(.white, 0, footer.minY, screenWidth, footer.height)
-            menuLabel(notice, in: footer.insetBy(dx: 8, dy: 0),
-                      font: .systemFont(ofSize: 13), color: Self.browse.muted)
+            let size = (notice as NSString).boundingRect(
+                with: CGSize(width: 206, height: CGFloat.greatestFiniteMagnitude), options: [.usesLineFragmentOrigin],
+                attributes: [.font: NSFont.systemFont(ofSize: 13)], context: nil
+            ).size
+            let footerHeight = max(30, ceil(size.height) + 12)
+            let top = CGFloat(height) - footerHeight
+            fill(.white, 0, top, screenWidth, footerHeight)
+            message(notice, color: Self.browse.muted, y: top + 6, height: footerHeight - 10, size: 13)
         }
     }
 
-    private func browseHeader(_ title: String, indicator: String?, tint: NSColor) {
+    private func browseHeader(_ title: String, playback: MusicPlayback?, tint: NSColor) {
         gradient(CGRect(x: 0, y: 0, width: 240, height: 19),
                  top: Self.rgb(251, 251, 251), bottom: Self.rgb(173, 173, 173))
         fill(Self.rgb(121, 122, 122), 0, 19, 240, 1)
         menuLabel(title, in: CGRect(x: 8, y: 0, width: 178, height: 19),
                   font: .boldSystemFont(ofSize: 13), color: .black)
-        if let indicator {
-            menuLabel(indicator, in: CGRect(x: 189, y: 0, width: 14, height: 19),
+        if let playback {
+            menuLabel(playback.isPlaying ? "▶" : "Ⅱ", in: CGRect(x: 189, y: 0, width: 14, height: 19),
                       font: .systemFont(ofSize: 10), color: tint)
         }
         fill(Self.rgb(74, 77, 70), 210, 4, 20, 10)
@@ -144,8 +148,7 @@ final class MusicScreenRenderer {
     }
 
     private func songs(_ session: MusicSession) {
-        let indicator = session.playback.map { $0.isPlaying ? "▶" : "Ⅱ" }
-        browseHeader("曲", indicator: indicator, tint: Self.rgb(24, 134, 199))
+        browseHeader("曲", playback: session.playback, tint: Self.rgb(24, 134, 199))
         if session.loadingSongs {
             message("曲を読み込み中…", color: Self.browse.muted)
             return

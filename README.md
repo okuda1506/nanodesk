@@ -14,7 +14,7 @@ On an Apple Silicon Mac running macOS 15 or later, install Xcode 16 or later. Op
 |---|---|
 | Rotate in both axes | Drag the housing. Shift-drag anywhere on the device, including the wheel. |
 | Browse and select | Trace the visible wheel to scroll. Click its center to select and MENU to go back. |
-| Control playback | On 再生中, click the bottom, right or left wheel labels to play/pause or move to an available song. |
+| Control playback | On any screen, click the bottom of the wheel to play/pause, the right to skip to the next song, or the left for the previous song. The menu and its highlight stay in place. |
 | Return to the front | Double-click the housing or select **Reset Orientation**. |
 | Move | Option-drag the device. |
 | Resize | Command-scroll, pinch, or use **Increase Size** and **Decrease Size**. |

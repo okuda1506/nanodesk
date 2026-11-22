@@ -67,6 +67,76 @@ struct MusicInteractionTests {
     private let first = MusicTrack(id: "A", title: "第一曲", artist: "演奏者", album: "第一集")
     private let second = MusicTrack(id: "B", title: "第二曲", artist: "演奏者")
 
+    @Test(arguments: [MusicSession.Page.home, .music, .songs])
+    func transportControlsMusicWithoutMovingTheBrowser(page: MusicSession.Page) async throws {
+        let third = MusicTrack(id: "C", title: "第三曲", artist: "演奏者")
+        let service = MockMusic([first, second, third])
+        // Music can already be playing before NanoDesk has opened the library.
+        _ = try await service.play(second.id)
+        let session = MusicSession(service: service)
+        if page == .music { await session.press(.select) }
+        if page == .songs { await openSongs(in: session) }
+        session.scroll(steps: 2)
+        let highlight = session.selection
+
+        await session.press(.playPause)
+        #expect(session.page == page && session.selection == highlight)
+        #expect(session.playback?.track == second && session.playback?.isPlaying == false)
+        await session.press(.playPause)
+        #expect(session.playback?.isPlaying == true)
+        #expect(await service.libraryRequests == (page == .songs ? 1 : 0))
+
+        // Skip relative to the real Music track, even if our snapshot is stale.
+        _ = try await service.play(first.id)
+        await session.press(.next)
+        #expect(session.page == page && session.selection == highlight && session.playback?.track == second)
+        await session.press(.previous)
+        await session.press(.previous)
+        #expect(session.page == page && session.selection == highlight && session.playback?.track == first)
+        #expect(await service.libraryRequests == 1)
+        #expect(await service.plays == ["B", "A", "B", "A"])
+    }
+
+    @Test func playFromStoppedUsesTheHighlightedSongOrTheFirstLibraryTrack() async {
+        let homeService = MockMusic([first, second])
+        let home = MusicSession(service: homeService)
+        home.scroll(steps: 3)
+        await home.press(.next)
+        await home.press(.previous)
+        #expect(await homeService.libraryRequests == 0)
+        await home.press(.playPause)
+        #expect(home.page == .home && home.selection == 3 && home.playback?.track == first)
+        #expect(await homeService.plays == ["A"])
+
+        let songsService = MockMusic([first, second])
+        let songs = MusicSession(service: songsService)
+        await openSongs(in: songs)
+        songs.scroll(steps: 1)
+        await songs.press(.playPause)
+        #expect(songs.page == .songs && songs.selection == 1 && songs.playback?.track == second)
+        await songs.press(.next)
+        #expect(await songsService.plays == ["B"])
+    }
+
+    @Test func transportReportsEmptyOrDeniedLibrariesAndCanRetryInPlace() async {
+        let empty = MusicSession(service: MockMusic([]))
+        await openSongs(in: empty)
+        await empty.press(.previous)
+        await empty.press(.playPause)
+        #expect(empty.page == .songs && empty.notice == "ライブラリに曲がありません。")
+
+        let service = MockMusic([first], issue: .denied)
+        let session = MusicSession(service: service)
+        await session.press(.playPause)
+        #expect(session.page == .home && session.notice == MusicIssue.denied.message)
+        await service.restoreAccess()
+        await session.press(.playPause)
+        #expect(session.page == .home && session.playback?.track == first && session.notice == nil)
+        await session.press(.previous)
+        await session.press(.next)
+        #expect(await service.plays == ["A"])
+    }
+
     @Test func menuOrderMatchesTheWheelAndUnavailableItemsStayOnTheirPage() async {
         let service = MockMusic([first])
         let session = MusicSession(service: service)

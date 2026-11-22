@@ -40,7 +40,7 @@ struct MusicAppBridge: MusicService {
     }
 
     func togglePlayback() async throws -> MusicPlayback? {
-        guard await Self.isMusicRunning() else { throw MusicIssue.unavailable }
+        guard await Self.isMusicRunning() else { return nil }
         return try await work { try Self.playback(Self.execute(.toggle)) }
     }
 
@@ -173,7 +173,7 @@ struct MusicAppBridge: MusicService {
             case .snapshot:
                 code = readPlayback
             case .toggle:
-                code = "playpause\n" + readPlayback
+                code = "if player state is stopped then return {}\nplaypause\n" + readPlayback
             case .artwork:
                 code = """
                     if player state is stopped then return {}
