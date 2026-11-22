@@ -2,6 +2,8 @@
 
 English · [日本語](README.ja.md) · [한국어](README.ko.md)
 
+![NanoDesk showing Now Playing and Cover Flow](docs/images/iPodobj.png)
+
 NanoDesk brings a silver fifth-generation iPod nano to the Mac desktop as an interactive 3D model. Its Japanese interface browses and controls Music.app, displays albums in Cover Flow, and records video with the Mac camera.
 
 ## Install on macOS

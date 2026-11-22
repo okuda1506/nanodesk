@@ -2,6 +2,8 @@
 
 [English](README.md) · [日本語](README.ja.md) · 한국어
 
+![NanoDesk의 재생 중 화면과 Cover Flow](docs/images/iPodobj.png)
+
 NanoDesk는 은색 5세대 iPod nano를 조작할 수 있는 3D 모델로 Mac 데스크탑에 표시하는 앱입니다. 일본어 메뉴에서 Music 앱의 곡을 재생하고, Cover Flow로 앨범을 찾아보고, Mac 카메라로 동영상을 촬영할 수 있습니다.
 
 ## Mac에 설치
