@@ -56,7 +56,8 @@ enum MusicIssue: Error, Sendable {
 
 protocol MusicService: Sendable {
     func tracks() async throws -> [MusicTrack]
-    func play(_ id: String) async throws -> MusicPlayback
+    /// When preserving the current track, return its live position and transport state without restarting it.
+    func play(_ id: String, preservingCurrent: Bool) async throws -> MusicPlayback
     func snapshot() async throws -> MusicPlayback?
     /// Toggle an active or paused track. Return nil when Music has no current playback.
     func togglePlayback() async throws -> MusicPlayback?
@@ -270,7 +271,7 @@ final class MusicSession {
     }
 
     private func play(_ id: String, openPlayer: Bool, requested: Int) async throws {
-        let value = try await service.play(id)
+        let value = try await service.play(id, preservingCurrent: openPlayer)
         install(value)
         guard revision == requested else { return }
         if openPlayer {

@@ -23,11 +23,12 @@ struct MusicAppBridge: MusicService {
         }
     }
 
-    func play(_ id: String) async throws -> MusicPlayback {
+    func play(_ id: String, preservingCurrent: Bool) async throws -> MusicPlayback {
         try await Self.openMusicIfNeeded()
         return try await work {
-            let row = try Self.execute(.play, id: id)
-            guard let playback = try Self.playback(row), playback.track.id == id, playback.isPlaying else {
+            let row = try Self.execute(preservingCurrent ? .selectTrack : .play, id: id)
+            guard let playback = try Self.playback(row), playback.track.id == id,
+                  preservingCurrent || playback.isPlaying else {
                 throw MusicIssue.cannotPlay
             }
             return playback
@@ -121,13 +122,13 @@ struct MusicAppBridge: MusicService {
         case -1712: return .timedOut
         default:
             if compiling { return .scriptSetup(code: code) }
-            if command == .play, code == -2701 || code == -1728 { return .cannotPlay }
+            if command == .play || command == .selectTrack, code == -2701 || code == -1728 { return .cannotPlay }
             return .eventFailed(code: code)
         }
     }
 
     private enum Command {
-        case tracks, play, snapshot, toggle, artwork
+        case tracks, play, selectTrack, snapshot, toggle, artwork
 
         var source: String {
             let readPlayback = """
@@ -158,8 +159,8 @@ struct MusicAppBridge: MusicService {
                     if (count tracks of library playlist 1) is 0 then return {{}, {}, {}}
                     return {persistent ID, name, artist} of every track of library playlist 1
                     """
-            case .play:
-                code = """
+            case .play, .selectTrack:
+                let startTrack = """
                     set itemTrack to first track of library playlist 1 whose persistent ID is targetID
                     play itemTrack
                     repeat 8 times
@@ -168,8 +169,22 @@ struct MusicAppBridge: MusicService {
                         end if
                         delay 0.12
                     end repeat
-                    \(readPlayback)
+                    if player state is not playing then return {}
                     """
+                if self == .selectTrack {
+                    code = """
+                        set shouldStart to true
+                        if player state is not stopped then
+                            if exists current track then set shouldStart to ((persistent ID of current track) is not targetID)
+                        end if
+                        if shouldStart then
+                            \(startTrack)
+                        end if
+                        \(readPlayback)
+                        """
+                } else {
+                    code = startTrack + "\n" + readPlayback
+                }
             case .snapshot:
                 code = readPlayback
             case .toggle:

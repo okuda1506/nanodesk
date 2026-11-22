@@ -25,7 +25,8 @@ private actor MockMusic: MusicService {
         return library
     }
 
-    func play(_ id: String) async throws -> MusicPlayback {
+    func play(_ id: String, preservingCurrent: Bool = false) async throws -> MusicPlayback {
+        if preservingCurrent, let current, current.track.id == id { return current }
         guard let track = library.first(where: { $0.id == id }), id != deniedTrack else {
             throw MusicIssue.cannotPlay
         }
@@ -66,6 +67,46 @@ private actor MockMusic: MusicService {
 struct MusicInteractionTests {
     private let first = MusicTrack(id: "A", title: "第一曲", artist: "演奏者", album: "第一集")
     private let second = MusicTrack(id: "B", title: "第二曲", artist: "演奏者")
+
+    @Test(arguments: [true, false])
+    func centerOpensTheCurrentTrackAtItsLivePosition(isPlaying: Bool) async throws {
+        let cover = Data([4, 2])
+        let service = MockMusic([first, second], cover: cover)
+        let session = MusicSession(service: service)
+        await openSongs(in: session)
+        session.scroll(steps: 1)
+
+        // Music starts the highlighted song between two list polls.
+        _ = try await service.play(second.id)
+        await service.advance(to: 43.5)
+        if !isPlaying { _ = try await service.togglePlayback() }
+        #expect(session.playback == nil)
+
+        await session.press(.select)
+        #expect(session.page == .playing && session.notice == nil)
+        #expect(session.playback?.track == second && session.playback?.isPlaying == isPlaying)
+        #expect(session.playback?.elapsed == 43.5 && session.artwork == cover)
+        #expect(try await service.snapshot() == session.playback)
+        #expect(await service.plays == [second.id])
+        await session.press(.menu)
+        #expect(session.page == .songs && session.selection == 1)
+    }
+
+    @Test func centerStartsTheSelectedIDWhenMusicHasSwitchedToAnIdenticallyNamedSong() async throws {
+        let other = MusicTrack(id: "C", title: first.title, artist: first.artist)
+        let service = MockMusic([first, other])
+        _ = try await service.play(first.id)
+        let session = MusicSession(service: service)
+        await openSongs(in: session)
+        #expect(session.playback?.track == first)
+
+        _ = try await service.play(other.id)
+        await service.advance(to: 56)
+        await session.press(.select)
+        #expect(session.page == .playing && session.playback?.track == first)
+        #expect(session.playback?.elapsed == 0 && session.playback?.isPlaying == true)
+        #expect(await service.plays == [first.id, other.id, first.id])
+    }
 
     @Test(arguments: [MusicSession.Page.home, .music, .songs])
     func transportControlsMusicWithoutMovingTheBrowser(page: MusicSession.Page) async throws {
@@ -226,7 +267,7 @@ struct MusicInteractionTests {
         await session.press(.select)
         await session.press(.previous)
         #expect(session.playback?.track == first)
-        #expect(await service.plays == ["A", "B", "B", "A"])
+        #expect(await service.plays == ["A", "B", "A"])
     }
 
     @Test func songListTracksMusicIndependentlyOfTheWheelSelection() async throws {
