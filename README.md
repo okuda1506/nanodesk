@@ -6,6 +6,18 @@ The desktop preview presents the approved 3D device in a transparent panel. Its 
 
 > **Project status** · The desktop preview and Japanese music flow are available for Mac validation. The [approved silver A1320 model](docs/MODEL_REVIEW.md) supplies its USDZ. See [implementation findings](docs/RISKS_AND_FINDINGS.md) for the checks performed so far.
 
+## Macにインストール
+
+Apple Silicon Mac、macOS 15以降、Xcode 16以降が必要です。リポジトリのルートで実行します。
+
+```bash
+./scripts/install-macos.sh
+```
+
+Release版をビルドし、B案のシルバーアイコンを設定した **~/Applications/NanoDesk.app** をインストールして起動します。以後はFinderのホームフォルダ内のApplicationsから起動できます。操作・終了はメニューバーから行います。初回はカメラ・マイク・Music操作へのアクセスを必要に応じて許可してください。
+
+全ユーザー用のApplicationsに配置する場合は、書き込み権限のあるMacで `./scripts/install-macos.sh /Applications` を実行してください。更新時はNanoDeskを終了し、既存のNanoDesk.appを別の場所へ移動してから再実行します。この手順はMac上でローカル署名してインストールします。
+
 ## Run the desktop preview
 
 On an Apple Silicon Mac running macOS 15 or later, install Xcode 16 or later. Open `NanoDesk.xcodeproj`, select the **NanoDesk** scheme and **My Mac**, and press **Command-R**. The target uses **Sign to Run Locally**. Use the **NanoDesk** menu-bar item to show or hide the device, reset it, toggle window behavior, or quit.
